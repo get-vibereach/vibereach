@@ -127,7 +127,7 @@
                     <div>
                         <h3 class="font-bold text-gray-800 text-base">Stop sending emails on reply</h3>
                         <p class="text-sm text-gray-500 mt-1">Stop sending emails to a lead if a response has been received</p>
-                        <p class="text-sm mt-1 text-info">Notice that you need to set each replied lead individualy when yhe lead responds to your email</p>
+                        <p id="stop-on-reply-notice-driver" class="text-sm mt-1 text-info">Notice that you need to set each replied lead individualy when yhe lead responds to your email</p>
                     </div>
                     <div id="stop-on-reply-card-driver-toggle-group" class="join rounded-lg toggle-group" data-option="stopOnReply">
                         <button type="button" class="join-item btn btn-sm {% if not campaign_options or not campaign_options.stop_on_reply %}bg-gray-100 border-gray-300 text-gray-500{% else %}btn-neutral text-white{% endif %}"
@@ -272,11 +272,11 @@
             </div>
 
             <!-- Launch Requirements Info -->
-            {% if campaign.status != 'active' %}
+            {% if campaign_status not in 'active,completed' %}
             <div id="launch-requirements-card-driver" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 class="font-semibold text-blue-800 mb-2">
+                <h5 class="font-semibold text-blue-800 mb-2">
                     <i class="fas fa-info-circle mr-2"></i>Before launching your campaign:
-                </h4>
+                </h5>
                 <ul class="text-sm text-blue-700 space-y-1">
                     <li class="flex items-center gap-2">
                         <i class="fas fa-check-circle text-green-500"></i>
@@ -296,6 +296,11 @@
                     </li>
                 </ul>
             </div>
+            {% else %}
+            <div id="launch-requirements-card-driver" class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h5 class="font-medium text-green-800">
+                    <i class="fas fa-info-circle mr-2"></i>Your campaign is already launched!
+                </h5>    
             {% endif %}
         </div>
 
@@ -497,6 +502,12 @@
             // launchBtn.disabled = false;
             // launchBtn.classList.remove('btn-disabled');
             {% if allowed_to_launch.error == "campaign_options_error" %}
+            {% if not request.user.onboarding_completed %}
+            const step = localStorage.getItem("onboardingStep");
+            if (step === "created_campaign_schedule") {
+                localStorage.setItem("onboardingStep", "saved_campaign_options");
+            };
+            {% endif %}
             window.location.reload();
             {% endif %}
         })
@@ -560,7 +571,7 @@
                 });
                 {% if not request.user.onboarding_completed %}
                 const step = localStorage.getItem("onboardingStep");
-                if (step === "created_campaign_schedule") {
+                if (step === "saved_campaign_options") {
                     localStorage.setItem("onboardingStep", "campaign_launched_successfully");
                 };
                 window.location.href = '{% url 'campaign_dashboard' campaign_id %}';
@@ -709,6 +720,35 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       const step = localStorage.getItem("onboardingStep");
+      if (step === "saved_campaign_options") {
+        const driver = window.driver.js.driver;
+        const driverObj = driver({
+          animate: true,
+          overlayOpacity: 0.7,
+          stagePadding: 10,
+          allowClose: false,
+          steps: [
+            {
+              element: "#launch-campaign-btn-driver",
+              popover: {
+                title: "Launch Your Campaign!",
+                description: "Once your options are saved, this button will activate. Click it to start your campaign!",
+                position: "top"
+              }
+            },
+          ]
+        });
+        driverObj.drive();
+
+        document.querySelector("#launch-campaign-btn-driver").addEventListener("click", () => {
+            driverObj.destroy();  // hides the overlay
+        // Now redirect to campaigns
+        });
+      }
+    });
+        
+    document.addEventListener("DOMContentLoaded", () => {
+      const step = localStorage.getItem("onboardingStep");
       if (step === "created_campaign_schedule") {
         const driver = window.driver.js.driver;
         const driverObj = driver({
@@ -747,6 +787,14 @@
               }
             },
             {
+              element: "#stop-on-reply-notice-driver",
+              popover: {
+                title: "NOTE!",
+                description: "You need to set each replied lead individualy when yhe lead responds to your email.",
+                position: "bottom"
+              }
+            },
+            {
               element: "#open-tracking-card-driver",
               popover: {
                 title: "Tracking Options",
@@ -775,14 +823,6 @@
               popover: {
                 title: "Save Your Changes",
                 description: "After configuring your options, click here to save them. This is required before you can launch.",
-                position: "top"
-              }
-            },
-            {
-              element: "#launch-campaign-btn-driver",
-              popover: {
-                title: "Launch Your Campaign!",
-                description: "Once your options are saved, this button will activate. Click it to start your campaign!",
                 position: "top"
               }
             },

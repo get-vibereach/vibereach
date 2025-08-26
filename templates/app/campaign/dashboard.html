@@ -229,11 +229,13 @@
 
         <!-- Step Analytics & Activity -->
         <div class="mt-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <div role="tablist" class="tabs tabs-boxed bg-gray-100 w-max">
-                <a role="tab" class="tab tab-active bg-white text-primary shadow-sm" onclick="switchTab('analytics')">Step Analytics</a>
-                <a role="tab" class="tab" onclick="switchTab('activity')">Activity</a>
+            <div class="flex flex-direction-raw items-center justify-start gap-4">
+                <div role="tablist" class="tabs tabs-boxed bg-gray-100 w-max">
+                    <a role="tab" class="tab tab-active bg-white text-primary shadow-sm" onclick="switchTab('analytics')">Step Analytics</a>
+                    <a role="tab" class="tab" onclick="switchTab('activity')">Activity</a>
+                </div>
+                <p class="text-sm text-gray-500" style="font-family: Product Sans;">Coming Soon!</p>
             </div>
-
             <!-- Step Analytics Tab -->
             <div class="mt-6 tab-content active" id="analytics-tab">
                 <div class="space-y-4" id="step-analytics-container">
@@ -755,14 +757,14 @@ document.addEventListener("DOMContentLoaded", () => {
             position: "top"
           }
         },
-        {
-          element: "#campaign-actions-bar-driver",
-          popover: {
-            title: "Manage Your Campaign",
-            description: "From here, you can pause, resume, or access other advanced settings for your active campaign.",
-            position: "bottom"
-          }
-        },
+        // {
+        //   element: "#campaign-actions-bar-driver",
+        //   popover: {
+        //     title: "Manage Your Campaign",
+        //     description: "From here, you can pause, resume, or access other advanced settings for your active campaign.",
+        //     position: "bottom"
+        //   }
+        // },
         {
           element: "#overall-dashboard-tab",
           popover: {

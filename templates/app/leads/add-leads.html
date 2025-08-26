@@ -367,7 +367,7 @@
                                             </div>
                                             <div class="flex items-start gap-2">
                                                 <span class="font-bold text-gray-700">4.</span>
-                                                <div class="text-error">Dublication leads will be ignored (dublication metric is email)</div>
+                                                <div class="text-error">Duplication leads will be ignored (duplication metric is email)</div>
                                             </div>
                                         </div>
                                     </div>
@@ -651,10 +651,15 @@ document.addEventListener('DOMContentLoaded', function() {
     'source', 'lead_type', 'tags'
   ];
   
-  // Download template button
+// Download template button
   document.getElementById('downloadTemplate').addEventListener('click', function() {
     const csvHeader = expectedColumns.join(',');
-    const csvContent = "data:text/csv;charset=utf-8," + csvHeader + "\n,,,,,,,,,,,,,,";
+
+    // Define the sample data for the first row
+    const sampleRow = "Omar Gatara,Omar,Gatara,Founder,omar@gatara.org,,https://www.linkedin.com/in/omar-gatara,VibeReach,https://vibereach.gatara.org,Software Dev,1-10,,,other,warm,founder";
+    
+    // Combine the header and the sample row, separated by a newline character (\n)
+    const csvContent = "data:text/csv;charset=utf-8," + csvHeader + "\n" + sampleRow;
     
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");

@@ -53,8 +53,7 @@ AUTH_USER_MODEL = 'clients.CustomUser'
 
 # Authentication settings
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/campaign/overall-dashboard/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGOUT_REDIRECT_URL = '/'
 
 
 MIDDLEWARE = [
@@ -74,6 +73,7 @@ ROOT_URLCONF = 'dcrm.urls'
 OPEN_URLS = [
     r"^/api/inngest",
     r"^/campaign/tracking/.*$",
+    r"^/admin/.*$",
 ]
 
 TEMPLATES = [

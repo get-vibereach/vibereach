@@ -134,7 +134,7 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem("onboardingStep", "onboarding_complete");
       
       // 2. Send the update to your backend API.
-      fetch('/auth/api/user/update-info/', {
+      fetch('/accounts/api/user/update-info/', {
         method: 'PATCH', // PATCH is ideal for updating a single field.
         headers: {
           'Content-Type': 'application/json',
@@ -149,7 +149,8 @@ document.addEventListener("DOMContentLoaded", () => {
           console.error('API Error: Failed to update user onboarding status.');
         } else {
           console.log('User onboarding status successfully updated in the database.');
-          window.location.href = '{% url 'overall_dashboard' %}';
+          localStorage.setItem("onboardingStep", "onboarding_complete");
+          window.location.href = '{% url 'campaign_view_list' %}';
         }
       })
       .catch(error => {
@@ -181,6 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         {
           element: "#submit-feedback-btn",
+          disableActiveInteraction: true,
           popover: {
             title: "Submit General Feedback",
             description: "Have a suggestion for improving an existing feature or a general thought about your experience? Use this button.",
@@ -189,6 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         {
           element: "#request-feature-btn",
+          disableActiveInteraction: true,
           popover: {
             title: "Request a New Feature",
             description: "Got a brilliant idea for something new? We'd love to hear it! Use this to submit detailed feature requests.",
