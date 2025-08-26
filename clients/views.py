@@ -13,6 +13,10 @@ from .models import SubscribedCompany
 from django.contrib.auth.decorators import login_not_required
 
 
+
+def custom_404_view(request, exception):
+    return render(request, 'auth/404.html', status=404)
+
 @login_not_required
 def home_view(request):
     """Feedback and feature requests page"""
