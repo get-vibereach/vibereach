@@ -56,4 +56,16 @@
 
 {% endblock %}
 
+
+<script>
+// Auto-dismiss ONLY .msg-dj messages after 15s
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    document.querySelectorAll(".msg-dj").forEach(el => {
+      el.classList.add("opacity-0", "transition", "duration-700");
+      setTimeout(() => el.remove(), 700); // remove after fade
+    });
+  }, 2000);
+});
+</script>
 </html>

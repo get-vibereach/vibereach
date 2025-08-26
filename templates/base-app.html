@@ -11,6 +11,24 @@
 
     <!-- Main Content Area -->
     <div class="flex w-full flex-col">
+
+      <!-- Messages -->
+      {% if messages %}
+          {% for message in messages %}
+              <div class="toast toast-top toast-center z-50 msg-dj">
+                  <div 
+                  class="alert 
+                          {% if message.tags == 'success' %}alert-success
+                          {% elif message.tags == 'warning' %}alert-warning
+                          {% elif message.tags == 'error' %}alert-error
+                          {% else %}alert-info{% endif %}
+                  mb-4">
+                  <span>{{ message }}</span>
+                  </div>
+              </div>    
+          {% endfor %}
+      {% endif %}
+
       <!-- Header -->
        {% include "components/header.html" %}
       
@@ -47,6 +65,45 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+
+// Auto-dismiss ONLY .msg-dj messages after 15s
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    document.querySelectorAll(".msg-dj").forEach(el => {
+      el.classList.add("opacity-0", "transition", "duration-700");
+      setTimeout(() => el.remove(), 700); // remove after fade
+    });
+  }, 1500);
+});
+
+
+function DirAutoAll() {
+    const textElements = document.querySelectorAll(
+        'p, h1, h2, h3, h4, h5, h6, span, a, li, dt, dd, label, caption, th, td, blockquote, figcaption, legend, button, input, textarea, pre'
+    );
+
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/; // Arabic Unicode range
+
+    textElements.forEach(element => {
+        // Set font size if defined
+        if (typeof fontSize !== "undefined") {
+            element.style.fontSize = fontSize;
+        }
+
+        // Set direction
+        element.setAttribute("dir", "auto");
+
+        // Detect Arabic text
+        if (arabicRegex.test(element.textContent)) {
+            element.classList.add("fustat-font");
+            element.style.setProperty("font-family", '"Fustat"', "important");
+        }
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', DirAutoAll);
 </script>  
 {% endblock %}
 
