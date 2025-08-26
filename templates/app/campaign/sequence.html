@@ -138,7 +138,7 @@
                 </div>
             </div>
 
-            <p class="text-sm text-gray-500 mt-5">
+            <p class="text-sm text-gray-500 mt-5" style="font-family: 'Product Sans';">
                 {% if message.delayed_by_days == 0 %}
                     this is the first message in this sequence.
                 {% else %}
@@ -338,7 +338,7 @@
                         <th>Status</th>
                         <th>Sent At</th>
                         <th>Response</th>
-                        <th>Actions: del send again, add: mark as wreplied, mark as opportunitiy</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="assignments-table-body" class="text-sm text-neutral-800">
@@ -501,16 +501,6 @@
                 repliedBtn.title = 'Already replied';
                 actionsCell.appendChild(repliedBtn);
             }
-
-            const resendBtn = document.createElement('button');
-            resendBtn.className = 'btn btn-xs btn-ghost';
-            resendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-            resendBtn.title = 'Resend';
-            resendBtn.onclick = (e) => {
-                e.stopPropagation();
-                resendAssignment(assignment.id);
-            };
-            actionsCell.appendChild(resendBtn);
 
             row.appendChild(actionsCell);
             tableBody.appendChild(row);

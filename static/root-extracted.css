@@ -96,7 +96,7 @@
   border-color: oklch(var(--su));
 
   /* Use the new high-contrast success-content color for the text */
-  color: oklch(var(--su));
+  color: #f3f4f6;
 }
 
 /* Create a slightly darker, satisfying hover/focus state */
