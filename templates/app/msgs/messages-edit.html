@@ -494,7 +494,7 @@ function saveCurrentMessage(messageId) {
         };
         
         updateMessageRow(messageId, messages[messageId]);
-        ModalSystem.toast(`Message saved (via ${method})`, 'success');
+        ModalSystem.toast(`Message saved`, 'success');
     })
     .catch(error => {
         console.error('Error saving message:', error);
@@ -563,7 +563,7 @@ function saveNewMessage() {
                  onclick="selectMessage(${data.id}, true)">
                 <div class="flex justify-between items-start">
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-medium text-gray-900 truncate">${data.subject}</h4>
+                        <h4 class="font-medium text-xl text-gray-900 truncate">${data.subject}</h4>
                         <p class="text-sm text-gray-500 mt-1 line-clamp-2">${data.intro.substring(0, 60)}${data.intro.length > 60 ? '...' : ''}</p>
                         <div class="flex items-center gap-4 mt-2">
                             <span class="text-xs text-gray-400">${data.product.name}</span>
@@ -790,7 +790,7 @@ function addNewMessage() {
              onclick="selectMessage('${tempId}', true)">
             <div class="flex justify-between items-start">
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-medium text-gray-900 truncate">New Message Template</h4>
+                    <h4 class="font-medium text-xl text-gray-900 truncate">New Message Template</h4>
                     <p class="text-sm text-gray-500 mt-1 line-clamp-2">Start typing your message content here...</p>
                     <div class="flex items-center gap-4 mt-2">
                         <span class="text-xs text-gray-400">${productName}</span>
@@ -867,7 +867,7 @@ function duplicateMessage(messageId) {
              onclick="selectMessage(${newMessageId}, true)">
             <div class="flex justify-between items-start">
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-medium text-gray-900 truncate">Copy of ${message.subject}</h4>
+                    <h4 class="font-medium text-xl text-gray-900 truncate">Copy of ${message.subject}</h4>
                     <p class="text-sm text-gray-500 mt-1 line-clamp-2">${message.intro?.substring(0, 60) || 'No content'}${message.intro?.length > 60 ? '...' : ''}</p>
                     <div class="flex items-center gap-4 mt-2">
                         <span class="text-xs text-gray-400">${message.product_name}</span>
@@ -1510,6 +1510,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         title: "Add a Call to Action",
                         description: "What do you want the prospect to do next? Ask a question or suggest a meeting.",
                         position: "left"
+                    },
+                    onHighlightStarted: (element) => {
+                        // Find the scrollable parent container
+                        const formContainer = document.getElementById('message-form-container');
+                        if (formContainer) {
+                            // Get the position of the signature element relative to the container
+                            const elementTop = element.offsetTop;
+                            // Scroll the container so the element is positioned 100px from the top
+                            // This provides enough space to clear the bottom toolbar.
+                            formContainer.scrollTo({ top: elementTop - 100, behavior: 'smooth' });
+                        }
                     }
                 },
                 {
@@ -1535,17 +1546,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         description: "Finally, add your signature. This will be automatically appended to your messages.",
                         position: "left"
                     },
-                    onHighlightStarted: (element) => {
-                        // Find the scrollable parent container
-                        const formContainer = document.getElementById('message-form-container');
-                        if (formContainer) {
-                            // Get the position of the signature element relative to the container
-                            const elementTop = element.offsetTop;
-                            // Scroll the container so the element is positioned 100px from the top
-                            // This provides enough space to clear the bottom toolbar.
-                            formContainer.scrollTo({ top: elementTop - 100, behavior: 'smooth' });
-                        }
-                    }
                 },
                 {
                     element: "#save-btn-driver",
@@ -1563,14 +1563,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         position: "top"
                     }
                 },
-                {
-                    element: "#preview-msg-btn-driver",
-                    popover: {
-                        title: "Preview Your Message",
-                        description: "You can always click 'Preview' to see how your message will look. When you're done, you're ready for your first campaign!",
-                        position: "left"
-                    }
-                },
+                // {
+                //     element: "#preview-msg-btn-driver",
+                //     popover: {
+                //         title: "Preview Your Message",
+                //         description: "You can always click 'Preview' to see how your message will look. When you're done, you're ready for your first campaign!",
+                //         position: "left"
+                //     }
+                // },
                 {
                     element: "#message-preview",
                     popover: {
