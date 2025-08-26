@@ -11,6 +11,24 @@
 
     <!-- Main Content Area -->
     <div class="flex w-full flex-col">
+
+      <!-- Messages -->
+      {% if messages %}
+          {% for message in messages %}
+              <div class="toast toast-top toast-center z-50 msg-dj">
+                  <div 
+                  class="alert 
+                          {% if message.tags == 'success' %}alert-success
+                          {% elif message.tags == 'warning' %}alert-warning
+                          {% elif message.tags == 'error' %}alert-error
+                          {% else %}alert-info{% endif %}
+                  mb-4">
+                  <span>{{ message }}</span>
+                  </div>
+              </div>    
+          {% endfor %}
+      {% endif %}
+
       <!-- Header -->
        {% include "components/header.html" %}
       
@@ -47,6 +65,17 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+
+// Auto-dismiss ONLY .msg-dj messages after 15s
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    document.querySelectorAll(".msg-dj").forEach(el => {
+      el.classList.add("opacity-0", "transition", "duration-700");
+      setTimeout(() => el.remove(), 700); // remove after fade
+    });
+  }, 1500);
+});
 </script>  
 {% endblock %}
 

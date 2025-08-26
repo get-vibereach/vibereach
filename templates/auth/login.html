@@ -5,6 +5,23 @@
 
 {% block content %}
 <body class="min-h-screen bg-base-100">
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="toast toast-top toast-center z-50 msg-dj">
+                <div 
+                class="alert 
+                        {% if message.tags == 'success' %}alert-success
+                        {% elif message.tags == 'warning' %}alert-warning
+                        {% elif message.tags == 'error' %}alert-error
+                        {% else %}alert-info{% endif %}
+                mb-4">
+                <span>{{ message }}</span>
+                </div>
+            </div>    
+        {% endfor %}
+    {% endif %}
+
 
     <!-- Header: Correctly positioned with flexbox -->
     <header class="absolute top-0 left-0 w-full flex justify-between items-center p-4 pt-2">
@@ -29,15 +46,6 @@
             <form class="card-body" method="post" action="{% url 'login_submit' %}">
                 {% csrf_token %}
                 <h2 class="card-title text-2xl font-bold justify-start mb-4">Login</h2>
-
-                <!-- Error Messages -->
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-error mb-4">
-                            <span>{{ message }}</span>
-                        </div>
-                    {% endfor %}
-                {% endif %}
 
                 <!-- Username Input -->
                 <div class="form-control">
