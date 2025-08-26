@@ -1452,6 +1452,50 @@ function copyMessage() {
 function exportMessage() {
     ModalSystem.toast('Export feature coming soon!', 'info');
 }
+
+
+
+function DirAutoAll() {
+    const textElements = document.querySelectorAll(
+        'p, h1, h2, h3, h4, h5, h6, span, a, li, dt, dd, label, caption, th, td, blockquote, figcaption, legend, button, input, textarea, pre'
+    );
+
+    textElements.forEach(element => {
+        if (typeof fontSize !== "undefined") {
+            element.style.fontSize = fontSize;
+        }
+        element.setAttribute("dir", "auto");
+    });
+}
+
+function watchAllEvents(callback) {
+  // Handle before reload/close
+  window.addEventListener("beforeunload", function (e) {
+    callback("beforeunload", e);
+  });
+
+  // Catch all events bubbling to document
+  document.addEventListener("*", function (e) {
+    callback(e.type, e);
+  }, true); // use capture to catch as early as possible
+
+  // Fallback: hook into addEventListener to auto-track
+  const originalAdd = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    const wrapped = function(e) {
+      callback(type, e);   // trigger your function
+      return listener.apply(this, arguments);
+    };
+    return originalAdd.call(this, type, wrapped, options);
+  };
+}
+
+// Example usage
+watchAllEvents(function(type, event) {
+  DirAutoAll();
+});
+
+
 {% if not request.user.onboarding_completed %}
 document.addEventListener("DOMContentLoaded", () => {
     const step = localStorage.getItem("onboardingStep");
