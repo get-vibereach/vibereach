@@ -823,10 +823,10 @@ def calculate_daily_stats(ctx: inngest.Context):
             "campaign_id": campaign_id,
             "date": daily_stats.date.isoformat(),
             "stats": {
-                "emails_sent": daily_stats.emails_sent,
-                "emails_opened": daily_stats.emails_opened,
-                "links_clicked": daily_stats.links_clicked,
-                "replies_received": daily_stats.replies_received
+                "emails_sent": daily_stats.emails_sent_today,
+                "emails_opened": daily_stats.opens_today,
+                "links_clicked": daily_stats.clicks_today,
+                "replies_received": daily_stats.replies_today
             }
         }
 
