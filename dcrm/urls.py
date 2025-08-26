@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.shortcuts import redirect, render
 
 from scheduler.views import scheduler_inngest_view_path
@@ -25,9 +25,13 @@ def health_check(request):
         return HttpResponse("unhealthy", status=503)
     
 
+handler404 = 'clients.views.custom_404_view'
+
+
 urlpatterns = [
     path('', home_view, name='home'),
-    path('admin/', admin.site.urls),
+    re_path(r'^admin/', include('admin_honeypot.urls')),  # Fake admin trap
+    path('fdudminramo/', admin.site.urls),
     path('campaign/', include('campaign.urls')),
     path('api/', include('api.urls')),
     path('accounts/', include('clients.urls')),
@@ -42,3 +46,10 @@ urlpatterns = [
 
 
 urlpatterns += [scheduler_inngest_view_path]
+
+
+from django.conf import settings
+if settings.DEBUG:
+    urlpatterns += [
+        path('test-404/', lambda request: render(request, 'auth/404.html', status=404)),
+    ]

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django_htmx',
     'mathfilters',
     'pytracking',
+    'admin_honeypot',
     'clients',
     'api',
     'campaign',
