@@ -1042,9 +1042,7 @@ class CampaignStats(models.Model):
         # 5. Opportunities: leads marked as positive opportunities
         opportunities = campaign_leads.filter(opportunity_status='positive')
         self.opportunities_count = opportunities.count()
-        self.opportunities_total_value = sum(
-            lead.opportunity_value or 0 for lead in opportunities
-        )
+        self.opportunities_total_value = self.opportunities_count * self.opportunity_value
 
         # 6. Conversions: leads that won (converted)
         conversions = campaign_leads.filter(opportunity_status='won')
@@ -1223,14 +1221,18 @@ class CampaignDailyStats(models.Model):
             converted_at__lte=end_of_day
         ).count()
 
+
+        # fix opportunities value calcc
+        campaign_stats = campaign.campaign_stats
+
         # Calculate value totals
         opportunities_today = CampaignLead.objects.filter(
             campaign=campaign,
+            opportunity_status='positive',
             opportunity_marked_at__range=(start_of_day, end_of_day)
         )
-        daily_stats.opportunities_value_today = sum(
-            lead.opportunity_value or 0 for lead in opportunities_today
-        )
+        opportunities_today_count = opportunities_today.count()
+        daily_stats.opportunities_value_today = opportunities_today_count * campaign_stats.opportunity_value
 
         conversions_today = CampaignLead.objects.filter(
             campaign=campaign,
@@ -1243,11 +1245,11 @@ class CampaignDailyStats(models.Model):
         # Cumulative values
         all_opportunities = CampaignLead.objects.filter(
             campaign=campaign,
+            opportunity_status='positive',
             opportunity_marked_at__lte=end_of_day
         )
-        daily_stats.total_opportunities_value = sum(
-            lead.opportunity_value or 0 for lead in all_opportunities
-        )
+        all_opportunities_count = all_opportunities.count()
+        daily_stats.total_opportunities_value = all_opportunities_count * campaign_stats.opportunity_value
 
         all_conversions = CampaignLead.objects.filter(
             campaign=campaign,
