@@ -13,6 +13,10 @@
                    class="tab h-auto pb-2 px-1 text-base mx-4 {% if current_tab == 'analytics' %}text-primary tab-active-underline border-primary{% else %}text-gray-500{% endif %}">
                         Analytics</a>
                 <a role="tab"
+                   href="{% url 'campaign_msgs_performance' campaign_id %}"
+                   class="tab h-auto pb-2 px-1 text-base mx-4 {% if current_tab == 'msgs_performance' %}text-primary tab-active-underline border-primary{% else %}text-gray-500{% endif %}">
+                        Msgs Performance</a>
+                <a role="tab"
                    href="{% url 'campaign_leads' campaign_id %}"
                    class="tab h-auto pb-2 px-1 text-base mx-4 {% if current_tab == 'leads' %}text-primary tab-active-underline border-primary{% else %}text-gray-500{% endif %}">
                         Leads</a>
