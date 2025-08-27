@@ -441,7 +441,7 @@ class Message(models.Model):
         for line in text.splitlines():
             line = line.strip()
             if line:  # skip empty lines
-                paragraphs.append(f'<p dir="auto">{markdown.markdown(line).replace("<p>", '<p dir="auto">')}</p>')
+                paragraphs.append(f"<p dir='auto'>{markdown.markdown(line).replace('<p>', '<p dir=\"auto\">')}</p>")
 
         # Join back
         return "\n".join(paragraphs)
