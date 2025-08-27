@@ -574,8 +574,8 @@
                 if (step === "saved_campaign_options") {
                     localStorage.setItem("onboardingStep", "campaign_launched_successfully");
                 };
-                window.location.href = '{% url 'campaign_dashboard' campaign_id %}';
                 {% endif %}
+                window.location.href = '{% url 'campaign_dashboard' campaign_id %}';
             } else {
                 // This handles cases where the server responds 200 OK but with success:false
                 console.error('Launch failed with success:false response:', data);
