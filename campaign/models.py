@@ -427,23 +427,22 @@ class Message(models.Model):
     def __str__(self):
         return f"{self.subject}"
     
+    
 
     def _convert_markdown_to_html(self, text):
         """
         Converts markdown text into clean HTML suitable for email.
         Each line becomes its own <p dir="auto"> block.
         """
-        # Convert markdown first
-        #result = markdown.markdown(text, extensions=["sane_lists"])
-
-        # Split by newlines and wrap each non-empty line in <p>
         paragraphs = []
         for line in text.splitlines():
             line = line.strip()
-            if line:  # skip empty lines
-                paragraphs.append(f"<p dir='auto'>{markdown.markdown(line).replace('<p>', '<p dir=\"auto\">')}</p>")
+            if line: 
+                markdown_processed_content = markdown.markdown(line)
+                adjusted_inner_html = markdown_processed_content.replace('<p>', '<p dir=\"auto\">')
+                final_paragraph_block = "<p dir='auto'>{}</p>".format(adjusted_inner_html)
+                paragraphs.append(final_paragraph_block)
 
-        # Join back
         return "\n".join(paragraphs)
 
 
