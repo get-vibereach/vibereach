@@ -19,15 +19,49 @@ def personalize_message(message_assignment, skip=True):
     """
 
     if skip:
+        # data = message_assignment.get_ai_personalization_data()
+        # lead_name = data['lead'].get('first_name', 'there')
+        # company = data['lead'].get('company_name', 'your company')
+        # template = data['message'].get('template', '')
+        # personalized = (template
+        #                 .replace('{first_name}', lead_name)
+        #                 .replace('{company_name}', company))
+        # message_assignment.save(update_fields=['personlized_msg_to_send'])
+        #return personalized
+    
         data = message_assignment.get_ai_personalization_data()
-        lead_name = data['lead'].get('first_name', 'there')
-        company = data['lead'].get('company_name', 'your company')
-        template = data['message'].get('template', '')
-        personalized = (template
-                        .replace('{first_name}', lead_name)
-                        .replace('{company_name}', company))
+
+        # Get the template and the lead data
+        template = data.get('message', {}).get('template', '')
+        lead_data = data.get('lead', {})
+
+        # Initialize the personalized message with the original template
+        personalized_message = template
+
+        # Iterate through the lead data and replace placeholders
+        for key, value in lead_data.items():
+            # Construct the placeholder string (e.g., '{first_name}')
+            placeholder = '{' + key + '}'
+            # Ensure the value is a string before replacing
+            if value is not None:
+                personalized_message = personalized_message.replace(placeholder, str(value))
+            else:
+                # Optionally, you can handle None values differently, e.g., replace with an empty string or a default
+                personalized_message = personalized_message.replace(placeholder, '')
+
+        # You might want to add fallback/default values for placeholders not found in lead_data
+        # if your template can contain placeholders that might not always be in the lead_data.
+        # For example, if you have a {position} placeholder but the lead doesn't always have one:
+        # if '{position}' in personalized_message:
+        #     position = lead_data.get('position', 'a colleague') # Example default
+        #     personalized_message = personalized_message.replace('{position}', position)
+
+        # Assuming you have a field named 'personlized_msg_to_send' to save the result
+        # Ensure this field exists in your message_assignment object's model.
+        message_assignment.personlized_msg_to_send = personalized_message
         message_assignment.save(update_fields=['personlized_msg_to_send'])
-        return personalized
+
+        return personalized_message
     
     else:
         try:
