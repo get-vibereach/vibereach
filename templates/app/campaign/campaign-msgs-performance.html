@@ -1,0 +1,235 @@
+{% extends "app/campaign/campaign-base.html" %}
+{% load static %}
+{% block title %}Message Performance{% endblock %}
+
+{% block cmp-base-content %}
+
+<!-- The form now wraps the entire content area to capture both search and filter submissions -->
+<form method="GET" action="" class="flex-1 flex flex-col overflow-hidden p-6 pt-0">
+    <!-- Header -->
+    <div class="flex items-center justify-between mt-8 mb-6">
+        <h3 class="text-xl font-semibold">Recipient Activity Report</h3>
+        
+        <div class="flex items-center gap-2">
+            <!-- Search Input (toggled by JS) -->
+            <div id="search-container" class="hidden">
+                <div class="join">
+                    <input type="text" name="search" placeholder="Search by name or email..." value="{{ search_query }}" class="input input-bordered join-item w-64" />
+                    <button class="btn btn-primary join-item" type="submit" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- This button toggles the search input's visibility -->
+            <button id="search-toggle" type="button" class="btn btn-ghost btn-circle" onclick="toggleSearch()" aria-label="Show search bar">
+                <i class="fas fa-search"></i>
+            </button>
+
+            <!-- Filter Dropdown -->
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-primary border border-base-300 h-10 min-h-10 px-3 flex items-center gap-2 rounded-lg">
+                    <i class="fas fa-filter"></i>
+                    Show Filters
+                </div>
+                <div tabindex="0" class="dropdown-content z-[1] menu p-4 shadow bg-base-100 rounded-box w-72 border border-base-300 mt-2">
+                    <!-- Filter by Status -->
+                    <div class="form-control w-full mb-4">
+                        <label class="label"><span class="label-text">Status</span></label>
+                        <select name="status" class="select select-bordered">
+                            <option value="">All Statuses</option>
+                            <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Sent</option>
+                            <option value="opened" {% if status_filter == 'opened' %}selected{% endif %}>Opened</option>
+                            <option value="clicked" {% if status_filter == 'clicked' %}selected{% endif %}>Clicked</option>
+                            <option value="responded" {% if status_filter == 'responded' %}selected{% endif %}>Responded</option>
+                        </select>
+                    </div>
+                    <!-- Filter by Message -->
+                    <div class="form-control w-full mb-4">
+                        <label class="label"><span class="label-text">Message</span></label>
+                        <select name="message" class="select select-bordered">
+                            <option value="">All Messages</option>
+                            {% for msg in all_messages %}
+                            <option value="{{ msg.id }}" {% if msg.id|stringformat:"s" == message_filter %}selected{% endif %}>{{ msg.subject|truncatechars:30 }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- Dropdown Actions -->
+                    <div class="flex gap-2 border-t border-base-300 pt-4 mt-2">
+                        <button type="submit" class="btn btn-primary flex-1">Apply</button>
+                        <a href="{% url 'campaign_msgs_performance' campaign.id %}" class="btn btn-ghost" title="Clear All Filters">Clear</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments Table (no changes here) -->
+    <div class="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="table w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="text-left font-semibold text-gray-900">Lead</th>
+                        <th class="text-left font-semibold text-gray-900">Message Subject</th>
+                        <th class="text-left font-semibold text-gray-900">Status</th>
+                        <th class="text-left font-semibold text-gray-900">Sent At</th>
+                        <th class="text-left font-semibold text-gray-900">Last Activity</th>
+                        <th class="text-left font-semibold text-gray-900">Mark as Replied</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in page_obj %}
+                    <tr class="hover">
+                        <td>
+                            <div class="font-medium text-gray-900">{{ assignment.campaign_lead.lead.full_name }}</div>
+                            <div class="text-sm text-gray-500">{{ assignment.campaign_lead.lead.email }}</div>
+                        </td>
+                        <td>
+                            <div class="text-sm text-gray-700" title="{{ assignment.message.subject }}">
+                                {{ assignment.message.subject|truncatechars:40 }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if assignment.responded %}
+                                <div class="badge badge-warning">Responded</div>
+                            {% elif assignment.visit_count > 0 %}
+                                <div class="badge badge-info">Clicked</div>
+                            {% elif assignment.opened %}
+                                <div class="badge badge-success">Opened</div>
+                            {% elif assignment.sent %}
+                                <div class="badge badge-outline">Sent</div>
+                            {% else %}
+                                <div class="badge badge-ghost">Pending</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ assignment.sent_at|date:"M d, Y, P"|default:"-" }}</td>
+                        <td>
+                            {% if assignment.responded_at %}
+                                {{ assignment.responded_at|date:"M d, Y, P" }}
+                                <div class="text-sm text-gray-500">Opened: {{ assignment.opened_at|date:"M d, Y, P" }}</div>
+                                {% if assignment.visited_at %}
+                                    <div class="text-sm text-gray-500">Clicked: {{ assignment.visited_at|date:"M d, Y, P" }}</div>
+                                {% endif %}
+                            {% elif assignment.visited_at %}
+                                {{ assignment.visited_at|date:"M d, Y, P" }}
+                                <div class="text-sm text-gray-500">Opened: {{ assignment.opened_at|date:"M d, Y, P" }}</div>
+                            {% elif assignment.opened_at %}
+                                {{ assignment.opened_at|date:"M d, Y, P" }}
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                           {% if assignment.sent and not assignment.responded %}
+                                <!-- FIX: Add type="button" to prevent form submission -->
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="markAsReplied({{ assignment.id }})" title="Mark as Replied">
+                                    <i class="fas fa-reply"></i>
+                                </button>
+                            {% elif assignment.responded %}
+                                <!-- FIX: Add type="button" here as well for consistency -->
+                                <button type="button" class="btn btn-xs btn-ghost btn-disabled text-success" title="Already replied">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-16">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-search fa-3x text-gray-300 mb-4"></i>
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">No Results Found</h3>
+                                <p class="text-gray-500 mb-6">
+                                    Try adjusting your search or filter criteria.
+                                </p>
+                                <a href="{% url 'campaign_msgs_performance' campaign.id %}" class="btn btn-primary">Clear All Filters</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination (no changes here) -->
+    <div class="mt-6 flex justify-between items-center">
+        <div class="text-sm text-gray-600">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
+        </div>
+        <div class="join">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" class="join-item btn">«</a>
+            {% else %}
+                <button class="join-item btn" disabled>«</button>
+            {% endif %}
+            
+            <button class="join-item btn btn-ghost">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</button>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" class="join-item btn">»</a>
+            {% else %}
+                <button class="join-item btn" disabled>»</button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+function toggleSearch() {
+    const searchContainer = document.getElementById('search-container');
+    const searchToggleBtn = document.getElementById('search-toggle');
+
+    // Show search input and hide the toggle button
+    searchContainer.classList.remove('hidden');
+    searchToggleBtn.classList.add('hidden');
+    searchContainer.querySelector('input').focus();
+}
+
+// Automatically show the search bar if a search query exists on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput && searchInput.value) {
+        toggleSearch();
+    }
+});
+// You can reuse the 'markAsReplied' function from your previous template.
+// Just place it here. Ensure your ModalSystem is globally available.
+
+function markAsReplied(assignmentId) {
+    ModalSystem.confirm({
+        title: 'Mark as Replied',
+        message: 'Are you sure you want to manually mark this as replied?',
+        confirmText: 'Mark as Replied',
+        confirmClass: 'btn-success',
+        action: function() {
+            fetch(`/api/message-assignments/${assignmentId}/mark-replied/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({}) // Body might not be needed depending on your API
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => { throw data; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                ModalSystem.toast('✅ Marked as replied!', 'success');
+                // Reload to see the change. For a more advanced UX,
+                // you could use JS to find the row and update its content.
+                location.reload(); 
+            })
+            .catch(error => {
+                console.error('Error marking as replied:', error);
+                ModalSystem.toast('❌ Failed to mark as replied.', 'error');
+            });
+        }
+    });
+}
+</script>
+
+{% endblock %}

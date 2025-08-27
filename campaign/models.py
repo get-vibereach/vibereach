@@ -683,6 +683,18 @@ class MessageAssignment(models.Model):
     responded_at= models.DateTimeField(null=True, blank=True)
     responded_content = models.TextField(blank=True)
 
+    # Tracking links
+    link = models.CharField(max_length=255, blank=True, help_text="Link for tracking")
+    visited_at = models.DateTimeField(null=True, blank=True)
+    visit_count = models.IntegerField(default=0)
+
+
+    def track_visit(self):
+        """Record a visit to this link"""
+        self.visit_count += 1
+        self.visited_at = timezone.now()
+        self.save()
+
     def get_tracking_url(self, url_type="product_url"):
         # if url_type == "product_url" and self.url:
         #     redirect_url = self.url.get_redirect_url()

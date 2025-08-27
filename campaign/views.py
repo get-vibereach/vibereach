@@ -4,6 +4,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, Q, Min
+from django.core.paginator import Paginator
 import pytz
 
 from campaign.utils import get_or_none, is_campaign_view_only
@@ -168,6 +169,82 @@ def campaign_dashboard(request, pk):
         'stats': campaign_stats
     }
     return render(request, "app/campaign/dashboard.html", context)
+
+
+
+def campaign_msgs_performance(request, pk):
+    campaign = get_object_or_404(Campaign, pk=pk)
+    campaign_status= get_campaign_status(request, pk)
+    all_messages_in_campaign = Message.objects.filter(
+        messageassignment__campaign=campaign
+    ).distinct()
+    
+    # Base queryset for all assignments in this campaign
+    assignments_list = MessageAssignment.objects.filter(
+        campaign_id=pk
+    ).select_related(
+        'campaign_lead__lead', 'message' # Optimization to prevent N+1 queries
+    ).order_by('-sent_at') # Order by most recently sent
+
+    
+    # --- Filtering Logic (handle GET parameters) ---
+    # This is a basic implementation. You can expand this for your API.
+    # For a full HTMX/AJAX solution, this logic would move to a separate API view.
+    # But for a standard Django page, this works.
+    
+    search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    message_filter = request.GET.get('message', '')
+    
+    if search_query:
+        assignments_list = assignments_list.filter(
+            Q(campaign_lead__lead__first_name__icontains=search_query) |
+            Q(campaign_lead__lead__last_name__icontains=search_query) |
+            Q(campaign_lead__lead__email__icontains=search_query)
+        )
+        
+    if status_filter:
+        if status_filter == 'sent':
+            assignments_list = assignments_list.filter(sent=True)
+        elif status_filter == 'opened':
+            assignments_list = assignments_list.filter(opened=True)
+        elif status_filter == 'clicked':
+            assignments_list = assignments_list.filter(visit_count__gt=0)
+        elif status_filter == 'responded':
+            assignments_list = assignments_list.filter(responded=True)
+
+    if message_filter:
+        assignments_list = assignments_list.filter(message_id=message_filter)            
+
+    # --- Pagination ---
+    # This is the new part
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+
+    # query_params.urlencode() will now contain "search=foo&status=bar" etc.
+    # but not the "page=..." part.
+        
+    paginator = Paginator(assignments_list, 25)  # Show 25 assignments per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'campaign': campaign,
+        'campaign_id': pk,
+        'campaign_status': campaign_status,
+        'current_tab': 'msgs_performance',
+        'page_obj': page_obj, # Pass the paginated object, not the full list
+        'query_params': query_params.urlencode(),
+        
+        # For filters
+        'all_messages': all_messages_in_campaign,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'message_filter': int(message_filter) if message_filter else None,
+    }
+    return render(request, "app/campaign/campaign-msgs-performance.html", context)
+
 
 
 def campaign_leads(request, pk):

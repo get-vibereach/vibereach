@@ -205,11 +205,12 @@ class CustomClickTrackingView(ClickTrackingView):
             
             # Find or create a link record for this click
             # This integrates with your existing Link model
-            if message_assignment.url and clicked_url in message_assignment.url.full_url():
+            if clicked_url:
                 # This is a click on the main CTA link
-                link = message_assignment.url
-                is_first_visit = link.visit_count == 0
-                link.track_visit()
+                message_assignment.link = clicked_url
+                message_assignment.save(update_fields=['link'])
+                is_first_visit = message_assignment.visit_count == 0
+                message_assignment.track_visit()
                 
                 logger.info(f"🔗 Main CTA link clicked: {clicked_url} for MessageAssignment {message_assignment_id}")
                 
@@ -217,12 +218,6 @@ class CustomClickTrackingView(ClickTrackingView):
                 if is_first_visit:
                     self._update_campaign_stats_for_click(message_assignment)
                     
-            elif message_assignment.newsletter_link and clicked_url in message_assignment.newsletter_link.full_url():
-                # This is a click on the newsletter link
-                link = message_assignment.newsletter_link
-                link.track_visit()
-                
-                logger.info(f"📰 Newsletter link clicked: {clicked_url} for MessageAssignment {message_assignment_id}")
             else:
                 logger.info(f"🔗 Other link clicked: {clicked_url} for MessageAssignment {message_assignment_id}")
                 

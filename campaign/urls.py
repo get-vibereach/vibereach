@@ -17,6 +17,7 @@ urlpatterns = [
     path('leads/add/<int:pk>/', views.add_leads, name='add_leads'),
     path('campaigns/new/', views.create_campaign_view, name='create_campaign'),
     path('dashboard/<int:pk>/', views.campaign_dashboard, name='campaign_dashboard'),
+    path('campaign-msgs-performance/<int:pk>/', views.campaign_msgs_performance, name='campaign_msgs_performance'),
     path('campaign-leads/<int:pk>/', views.campaign_leads, name='campaign_leads'),
     path('campaign-sequence/<int:pk>/', views.campaign_sequence, name='campaign_sequence'),
     path('campaign-scheduele/<int:pk>/', views.campaign_scheduele, name='campaign_scheduele'),
