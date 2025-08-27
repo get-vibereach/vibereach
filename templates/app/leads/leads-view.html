@@ -63,6 +63,8 @@
                                 <option value="">All Types</option>
                                 <option value="cold">Cold</option>
                                 <option value="warm">Warm</option>
+                                <option value="hot">Hot</option>
+                                <option value="customer">Customer</option>
                             </select>
                         </div>
                         <div class="p-2">
@@ -73,8 +75,11 @@
                                     id="source-filter"
                                     class="select select-bordered select-sm w-full bg-white">
                                 <option value="">All Sources</option>
-                                <option value="linkedin">LinkedIn</option>
-                                <option value="manual">Manual</option>
+                                <option value="linkedin_scrape">LinkedIn Scrape</option>
+                                <option value="social">Social Media</option>
+                                <option value="newsletter">Newsletter Opt-in</option>
+                                <option value="form">Free Consultation Form</option>
+                                <option value="other">Other</option>
                             </select>
                         </div>
                     </div>
@@ -136,7 +141,28 @@
                     </thead>
                     <tbody id="leads-table-body">
                         {% for lead in leads %}
-                        <tr class="hover:bg-gray-50 lead-row">
+                        <tr class="hover:bg-gray-50 lead-row"
+                            data-lead-id="{{ lead.id }}"
+                            data-full-name="{{ lead.full_name }}"
+                            data-first-name="{{ lead.first_name }}"
+                            data-last-name="{{ lead.last_name }}"
+                            data-full-arabic-name="{{ lead.full_arabic_name }}"
+                            data-first-arabic-name="{{ lead.first_arabic_name }}"
+                            data-last-arabic-name="{{ lead.last_arabic_name }}"
+                            data-position="{{ lead.position }}"
+                            data-email="{{ lead.email }}"
+                            data-phone-number="{{ lead.phone_number }}"
+                            data-linkedin-profile="{{ lead.linkedin_profile }}"
+                            data-company-name="{{ lead.company_name }}"
+                            data-company-arabic-name="{{ lead.company_arabic_name }}"
+                            data-company-website="{{ lead.company_website }}"
+                            data-industry="{{ lead.industry }}"
+                            data-employee-count="{{ lead.employee_count }}"
+                            data-company-linkedin-page="{{ lead.campany_linkedin_page }}"
+                            data-location="{{ lead.location }}"
+                            data-source="{{ lead.source }}"
+                            data-lead-type="{{ lead.lead_type }}"
+                            data-created-at="{{ lead.created_at|date:'Y-m-d H:i:s' }}"> {# Format date consistently for JS #}
                             <td class="text-center">
                                 <input type="checkbox"
                                     class="checkbox checkbox-sm rounded lead-checkbox"
@@ -147,6 +173,9 @@
                             <td class="font-medium text-gray-700">
                                 <div class="flex flex-col">
                                     <span style="font-size:16px;">{{ lead.full_name }}</span>
+                                    {% if lead.full_arabic_name %}
+                                    <span class="text-sm text-gray-500 lead-arabic-name" style="font-size:16px; text-align: right;">({{ lead.full_arabic_name }})</span>
+                                    {% endif %}
                                     <span class="text-sm text-gray-500">{{ lead.email }}</span>
                                     {% if lead.linkedin_profile %}
                                     <span class="text-xs text-blue-500">
@@ -164,6 +193,9 @@
                             <td class="text-gray-600">
                                 <div class="flex flex-col">
                                     <span style="font-size:15px;">{{ lead.company_name }}</span>
+                                    {% if lead.company_arabic_name %}
+                                    <span class="text-sm text-gray-500 company-arabic-name" style="font-size:16px; text-align: right;">({{ lead.company_arabic_name }})</span>
+                                    {% endif %}
                                     {% if lead.company_website %}
                                     <span class="text-sm text-blue-500">
                                         <a href="{{ lead.company_website }}" target="_blank" class="hover:underline" style="font-size:14px;">
@@ -193,7 +225,7 @@
                                     </span>   
                                 {% elif lead.lead_type == 'customer' %}
                                     <span class="badge badge-success gap-1 font-medium py-2">
-                                        <i class="fa-solid fa-true"></i> {{ lead.lead_type }}
+                                        <i class="fa-solid fa-check-circle"></i> {{ lead.lead_type }}
                                     </span>   
                                 {% endif %}      
                             </td>
@@ -213,8 +245,8 @@
                                         <i class="fa-solid fa-ellipsis-vertical"></i>
                                     </div>
                                     <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-white rounded-box w-40 border border-gray-200">
-                                        <li><a onclick="copyLeadDetails({{ lead.id }})" class="text-blue-600"><i class="fa-solid fa-eye mr-2"></i>Copy</a></li>
-                                        <li><a onclick="addLeadToList({{ lead.id }})" class="text-green-600"><i class="fa-solid fa-plus mr-2"></i>Add to list</a></li>
+                                        <li><a onclick="copyLeadDetails({{ lead.id }})" class="text-blue-600"><i class="fa-solid fa-copy mr-2"></i>Copy Details</a></li>
+                                        <li><a onclick="addLeadToList({{ lead.id }})" class="text-green-600"><i class="fa-solid fa-plus mr-2"></i>Move to list</a></li>
                                         <li><a onclick="deleteLead({{ lead.id }})" class="text-red-600"><i class="fa-solid fa-trash mr-2"></i>Delete</a></li>
                                     </ul>
                                 </div>
@@ -361,19 +393,13 @@
 <!-- Overlay (hidden by default) -->
 <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
 
-
-
-
-
-
-
-
-
-
-
-
 <script>
-    // right side bar
+    // Utility to convert snake_case to camelCase for dataset access
+    function snakeToCamel(s) {
+        return s.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    }
+
+    // right side bar (no changes needed for Arabic fields here)
 function openSidebar(email) {
     document.getElementById('sidebar').classList.remove('translate-x-full');
     document.getElementById('overlay').classList.remove('hidden');
@@ -481,8 +507,7 @@ function deleteSelected() {
 
                 ModalSystem.toast(data.message || `${leadIds.length} lead(s) deleted successfully!`, 'success');
 
-                // Refresh UI/stats
-                htmx.trigger('#search-input', 'keyup');
+                filterLeads(); // Re-run filter to update visible count and empty state
             })
             .catch(error => {
                 ModalSystem.toast('Failed to delete lead(s). Try again.', 'error');
@@ -512,14 +537,12 @@ function deleteLead(leadId) {
                 if (!response.ok) {
                     return response.json().then(err => { throw err; });
                 }
-                // No content expected on successful DELETE
                 return null;
             })
             .then(() => {
                 // Remove the row from the DOM
-                const checkbox = document.querySelector(`input[value="${leadId}"]`);
-                if (checkbox) {
-                    const row = checkbox.closest('tr');
+                const row = document.querySelector(`tr[data-lead-id="${leadId}"]`);
+                if (row) {
                     row.remove();
                 }
 
@@ -527,7 +550,7 @@ function deleteLead(leadId) {
 
                 ModalSystem.toast('Lead deleted successfully!', 'success');
 
-                htmx.trigger('#search-input', 'keyup');
+                filterLeads(); // Re-run filter to update visible count and empty state
             })
             .catch(error => {
                 ModalSystem.toast('Failed to delete lead. Please try again.', 'error');
@@ -538,18 +561,17 @@ function deleteLead(leadId) {
 }
 
 function addLeadToList(leadId) {
-    // Build the select options dynamically from the available lists
     let selectOptions = '<option value="">Select a list</option>';
     {% for list in lead_lists_assign %}
         selectOptions += '<option value="{{ list.id }}">{{ list.title|escapejs }}</option>';
     {% endfor %}
 
     ModalSystem.confirm({
-        title: 'Add to List',
-        message: `Select a list to add this lead to:`,
-        confirmText: 'Add',
+        title: 'Move to List', // Changed from Add to Move for clarity as it leaves this list
+        message: `Select a list to move this lead to:`,
+        confirmText: 'Move',
         confirmClass: 'btn-primary',
-        html: true,  // Enable HTML rendering
+        html: true,
         customContent: `
             <select id="list-select" class="select select-bordered w-full mt-2">
                 ${selectOptions}
@@ -581,12 +603,11 @@ function addLeadToList(leadId) {
             .then(data => {
                 ModalSystem.toast(`${data.moved_count} lead(s) moved successfully!`, 'success');
                 // Remove the row from the DOM
-                const checkbox = document.querySelector(`input[value="${leadId}"]`);
-                if (checkbox) {
-                    const row = checkbox.closest('tr');
+                const row = document.querySelector(`tr[data-lead-id="${leadId}"]`);
+                if (row) {
                     row.remove();
-                };
-                htmx.trigger('#search-input', 'keyup'); // Refresh table/stats
+                }
+                filterLeads(); // Re-run filter to update visible count and empty state
             })
             .catch(error => {
                 ModalSystem.toast('Failed to move lead. Please try again.', 'error');
@@ -604,18 +625,17 @@ function addToList() {
 
     if (leadIds.length === 0) return;
 
-    // Build the select options dynamically from the available lists
     let selectOptions = '<option value="">Select a list</option>';
     {% for list in lead_lists_assign %}
         selectOptions += '<option value="{{ list.id }}">{{ list.title|escapejs }}</option>';
     {% endfor %}
 
     ModalSystem.confirm({
-        title: 'Add to List',
-        message: `Select a list to add ${leadIds.length} lead(s) to:`,
-        confirmText: 'Add',
+        title: 'Move to List', // Changed from Add to Move for clarity
+        message: `Select a list to move ${leadIds.length} lead(s) to:`,
+        confirmText: 'Move',
         confirmClass: 'btn-primary',
-        html: true,  // Enable HTML rendering
+        html: true,
         customContent: `
             <select id="list-select" class="select select-bordered w-full mt-2">
                 ${selectOptions}
@@ -646,16 +666,12 @@ function addToList() {
             .then(data => {
                 ModalSystem.toast(`${data.moved_count} lead(s) moved successfully! ${data.skipped_count} lead(s) already in the target list.`, 'success');
                 clearSelection();
-                // Remove the row from the DOM
+                // Remove the moved rows from the DOM
                 leadIds.forEach(leadId => {
-                const checkbox = document.querySelector(`input[value="${leadId}"]`);
-                if (checkbox) {
-                    const row = checkbox.closest('tr');
+                    const row = document.querySelector(`tr[data-lead-id="${leadId}"]`);
                     if (row) row.remove();
-                    }
                 });
-
-                htmx.trigger('#search-input', 'keyup'); // Refresh table/stats
+                filterLeads(); // Re-run filter to update visible count and empty state
             })
             .catch(error => {
                 ModalSystem.toast('Failed to move leads. Please try again.', 'error');
@@ -683,19 +699,19 @@ function filterLeads() {
     let visibleCount = 0;
 
     rows.forEach(row => {
-        const leadText = row.textContent.toLowerCase();
+        const leadData = row.dataset;
+        const searchableText = [
+            leadData.fullName, leadData.firstName, leadData.lastName,
+            leadData.fullArabicName, leadData.firstArabicName, leadData.lastArabicName,
+            leadData.position, leadData.email, leadData.phoneNumber, leadData.linkedinProfile,
+            leadData.companyName, leadData.companyArabicName, leadData.companyWebsite, leadData.industry,
+            leadData.employeeCount, leadData.companyLinkedinPage, leadData.location,
+            leadData.source, leadData.leadType
+        ].filter(Boolean).map(s => String(s).toLowerCase()).join(' ');
 
-        // Get lead type from badge
-        const typeBadge = row.querySelector('.badge');
-        const leadType = typeBadge ? typeBadge.textContent.toLowerCase() : '';
-
-        // Get source from second badge
-        const badges = row.querySelectorAll('.badge');
-        const source = badges.length > 1 ? badges[1].textContent.toLowerCase() : '';
-
-        const matchesSearch = searchTerm === '' || leadText.includes(searchTerm);
-        const matchesType = leadTypeFilter === '' || leadType.includes(leadTypeFilter);
-        const matchesSource = sourceFilter === '' || source.includes(sourceFilter);
+        const matchesSearch = searchTerm === '' || searchableText.includes(searchTerm);
+        const matchesType = leadTypeFilter === '' || (leadData.leadType && leadData.leadType.toLowerCase() === leadTypeFilter);
+        const matchesSource = sourceFilter === '' || (leadData.source && leadData.source.toLowerCase() === sourceFilter);
 
         if (matchesSearch && matchesType && matchesSource) {
             row.style.display = '';
@@ -717,59 +733,48 @@ function filterLeads() {
     const searchStatus = document.getElementById('search-status');
     if (searchStatus) {
         if (searchTerm || leadTypeFilter || sourceFilter) {
-            searchStatus.textContent = `Showing ${visibleCount} of {{ stats.total_leads }} leads`;
+            searchStatus.textContent = `Showing ${visibleCount} lead${visibleCount === 1 ? '' : 's'}`;
         } else {
-            searchStatus.textContent = 'Showing all leads';
+            searchStatus.textContent = `Showing all {{ leads|length }} leads`;
         }
     }
 }
 
 
-
 function copyLeadDetails(leadId) {
-    // Find the lead row
-    const row = document.querySelector(`input[value="${leadId}"]`).closest('tr');
+    const row = document.querySelector(`tr[data-lead-id="${leadId}"]`);
     
     if (!row) {
         ModalSystem.toast('Lead not found', 'error');
         return;
     }
     
-    // Extract lead information from the row
-    const nameElement = row.querySelector('td:nth-child(3) span');
-    const emailElement = row.querySelector('td:nth-child(3) span.text-sm');
-    const linkedinElement = row.querySelector('td:nth-child(3) a[href*="linkedin"]');
-    const phoneElement = Array.from(row.querySelectorAll('td:nth-child(3) span')).find(el => el.textContent.includes('📞'));
+    const lead = row.dataset; 
     
-    const companyElement = row.querySelector('td:nth-child(4) span');
-    const websiteElement = row.querySelector('td:nth-child(4) a[href]');
-    const industryElement = row.querySelector('td:nth-child(4) span.text-xs');
-    
-    const positionElement = row.querySelector('td:nth-child(5)');
-    const locationElement = row.querySelector('td:nth-child(6)');
-    const typeElement = row.querySelector('td:nth-child(7) .badge');
-    const sourceElement = row.querySelector('td:nth-child(8) .badge');
-    const createdElement = row.querySelector('td:nth-child(9)');
-    
-    // Format the lead details
     const leadDetails = `
-        Name: ${nameElement ? nameElement.textContent.trim() : 'N/A'}
-        Email: ${emailElement ? emailElement.textContent.trim() : 'N/A'}
-        ${linkedinElement ? `LinkedIn: ${linkedinElement.href}` : ''}
-        ${phoneElement ? `Phone: ${phoneElement.textContent.replace('📞 ', '').trim()}` : ''}
+        Name: ${lead.fullName || 'N/A'}
+        ${lead.fullArabicName ? `Full Arabic Name: ${lead.fullArabicName}` : ''}
+        ${lead.firstName ? `First Name: ${lead.firstName}` : ''}
+        ${lead.lastName ? `Last Name: ${lead.lastName}` : ''}
+        ${lead.firstArabicName ? `First Arabic Name: ${lead.firstArabicName}` : ''}
+        ${lead.lastArabicName ? `Last Arabic Name: ${lead.lastArabicName}` : ''}
+        Position: ${lead.position || 'N/A'}
+        Email: ${lead.email || 'N/A'}
+        ${lead.phoneNumber ? `Phone: ${lead.phoneNumber}` : ''}
+        ${lead.linkedinProfile ? `LinkedIn Profile: ${lead.linkedinProfile}` : ''}
 
-        Company: ${companyElement ? companyElement.textContent.trim() : 'N/A'}
-        ${websiteElement ? `Website: ${websiteElement.href}` : ''}
-        ${industryElement ? `Industry & Size: ${industryElement.textContent.trim()}` : ''}
-
-        Position: ${positionElement ? positionElement.textContent.trim() : 'N/A'}
-        Location: ${locationElement ? locationElement.textContent.trim() : 'N/A'}
-        Lead Type: ${typeElement ? typeElement.textContent.trim() : 'N/A'}
-        Source: ${sourceElement ? sourceElement.textContent.trim() : 'N/A'}
-        Created: ${createdElement ? createdElement.textContent.trim() : 'N/A'}
+        Company: ${lead.companyName || 'N/A'}
+        ${lead.companyArabicName ? `Company Arabic Name: ${lead.companyArabicName}` : ''}
+        ${lead.companyWebsite ? `Company Website: ${lead.companyWebsite}` : ''}
+        Industry: ${lead.industry || 'N/A'}
+        Employee Count: ${lead.employeeCount || 'N/A'}
+        ${lead.companyLinkedinPage ? `Company LinkedIn Page: ${lead.companyLinkedinPage}` : ''}
+        Location: ${lead.location || 'N/A'}
+        Lead Type: ${lead.leadType || 'N/A'}
+        Source: ${lead.source || 'N/A'}
+        Created At: ${lead.createdAt || 'N/A'}
     `.trim();
     
-    // Copy to clipboard
     navigator.clipboard.writeText(leadDetails)
         .then(() => {
             ModalSystem.toast('Lead details copied to clipboard!', 'success');
@@ -782,7 +787,6 @@ function copyLeadDetails(leadId) {
 
 
 function exportLeadsToCSV() {
-    // Get all visible leads (after filtering)
     const visibleRows = Array.from(document.querySelectorAll('.lead-row')).filter(row => {
         return window.getComputedStyle(row).display !== 'none';
     });
@@ -792,75 +796,34 @@ function exportLeadsToCSV() {
         return;
     }
     
-    // Create CSV header
-    let csvContent = "Name,Email,LinkedIn,Phone,Company,Website,Industry,Employee Count,Position,Location,Lead Type,Source,Created At\n";
+    const headers = [
+        'full_name', 'first_name', 'last_name', 
+        'full_arabic_name', 'first_arabic_name', 'last_arabic_name',
+        'position', 'email', 'phone_number', 'linkedin_profile', 
+        'company_name', 'company_arabic_name', 'company_website', 'industry', 
+        'employee_count', 'company_linkedin_page', 'location', 
+        'source', 'lead_type', 'created_at' 
+    ];
     
-    // Add data for each visible lead
+    let csvContent = headers.map(h => `"${h}"`).join(',') + '\n';
+
     visibleRows.forEach(row => {
-        // Extract data from each cell
-        const nameElement = row.querySelector('td:nth-child(3) span');
-        const emailElement = row.querySelector('td:nth-child(3) span.text-sm');
-        const linkedinElement = row.querySelector('td:nth-child(3) a[href*="linkedin"]');
-        const phoneElement = Array.from(row.querySelectorAll('td:nth-child(3) span')).find(el => el.textContent.includes('📞'));
-        
-        const companyElement = row.querySelector('td:nth-child(4) span');
-        const websiteElement = row.querySelector('td:nth-child(4) a[href]');
-        const industryElement = row.querySelector('td:nth-child(4) span.text-xs');
-        
-        const positionElement = row.querySelector('td:nth-child(5)');
-        const locationElement = row.querySelector('td:nth-child(6)');
-        const typeElement = row.querySelector('td:nth-child(7) .badge');
-        const sourceElement = row.querySelector('td:nth-child(8) .badge');
-        const createdElement = row.querySelector('td:nth-child(9)');
-        
-        // Parse industry and employee count
-        let industry = '';
-        let employeeCount = '';
-        if (industryElement) {
-            const industryText = industryElement.textContent.trim();
-            const parts = industryText.split(' • ');
-            industry = parts[0] || '';
-            employeeCount = parts.length > 1 ? parts[1].replace(' employees', '').trim() : '';
-        }
-        
-        // Parse phone number
-        let phone = '';
-        if (phoneElement) {
-            phone = phoneElement.textContent.replace('📞 ', '').trim();
-        }
-        
-        // Parse lead type (remove icon)
-        let leadType = '';
-        if (typeElement) {
-            leadType = typeElement.textContent.trim();
-        }
-        
-        // Parse source (remove icon)
-        let source = '';
-        if (sourceElement) {
-            source = sourceElement.textContent.trim();
-        }
-        
-        // Add row to CSV (escape commas and quotes)
-        const name = nameElement ? `"${nameElement.textContent.trim().replace(/"/g, '""')}"` : 'N/A';
-        const email = emailElement ? `"${emailElement.textContent.trim().replace(/"/g, '""')}"` : 'N/A';
-        const linkedin = linkedinElement ? `"${linkedinElement.href.replace(/"/g, '""')}"` : 'N/A';
-        const company = companyElement ? `"${companyElement.textContent.trim().replace(/"/g, '""')}"` : 'N/A';
-        const website = websiteElement ? `"${websiteElement.href.replace(/"/g, '""')}"` : 'N/A';
-        const position = positionElement ? `"${positionElement.textContent.trim().replace(/"/g, '""')}"` : 'N/A';
-        const location = locationElement ? `"${locationElement.textContent.trim().replace(/"/g, '""')}"` : 'N/A';
-        const created = createdElement ? `"${createdElement.textContent.trim().replace(/"/g, '""')}"` : 'N/A';
-        
-        csvContent += `${name},${email},${linkedin},"${phone}",${company},${website},"${industry}","${employeeCount}",${position},${location},"${leadType}","${source}",${created}\n`;
+        const rowData = [];
+        headers.forEach(headerKey => {
+            let value = row.dataset[snakeToCamel(headerKey)];
+            if (value === undefined || value === null) {
+                value = '';
+            }
+            rowData.push(`"${String(value).replace(/"/g, '""')}"`);
+        });
+        csvContent += rowData.join(',') + '\n';
     });
     
-    // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
     
-    // Get list name for filename
     let listName = "leads";
     const listTitleElement = document.querySelector('h1');
     if (listTitleElement) {
@@ -877,7 +840,6 @@ function exportLeadsToCSV() {
 }
 
 
-
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateBulkActions();
@@ -886,23 +848,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('search-input').addEventListener('input', filterLeads);
     document.getElementById('lead-type-filter').addEventListener('change', filterLeads);
     document.getElementById('source-filter').addEventListener('change', filterLeads);
+
+    // Initial filter application to set correct count/empty state
+    filterLeads();
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-// onboarding
+// onboarding (no changes needed for Arabic fields here)
 {% if not request.user.onboarding_completed %}
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -966,9 +918,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 {% endif %}
-
-
-
-
 </script>
+
 {% endblock %}

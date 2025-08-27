@@ -154,5 +154,45 @@
         {% block base-content %}
      
         {% endblock %}
+
+
+
+<script>
+function DirAutoAll() {
+    const textElements = document.querySelectorAll(
+        'p, h1, h2, h3, h4, h5, h6, span, a, li, dt, dd, label, caption, th, td, blockquote, figcaption, legend, button, input, textarea, pre'
+    );
+
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/; // Arabic Unicode range
+    const excludedContainer = document.getElementById('message-preview');
+
+    textElements.forEach(element => {
+        // Set font size if defined
+        if (typeof fontSize !== "undefined") {
+            element.style.fontSize = fontSize;
+        }
+
+        // Set direction
+        element.setAttribute("dir", "auto");
+        
+        // Skip elements inside #Cmessage-preview
+        if (excludedContainer && excludedContainer.contains(element)) {
+            // Detect Arabic text
+            if (arabicRegex.test(element.textContent)) {
+                element.style.setProperty("font-family", "'Roboto', Arial, sans-serif", "important");
+            }
+            return;
+        }
+
+        // Detect Arabic text
+        if (arabicRegex.test(element.textContent)) {
+            element.classList.add("fustat-font");
+            element.style.setProperty("font-family", '"Fustat"', "important");
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', DirAutoAll);
+</script>
   </body>
 </html>

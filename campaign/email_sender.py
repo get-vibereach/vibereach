@@ -530,35 +530,19 @@ def format_email_as_html(content, message_assignment=None):
         <style>
             body {{
                 font-family: Arial, sans-serif;
-                line-height: 1.6;
-                color: #333333;
-                margin: 0;
-                padding: 20px;
             }}
             p {{
                 margin-bottom: 16px;
-                font-size: 16px;
-            }}
-            a {{
-                color: #0066cc;
-                text-decoration: none;
-            }}
-            a:hover {{
-                text-decoration: underline;
-            }}
-            .signature {{
-                margin-top: 30px;
-                border-top: 1px solid #eeeeee;
-                padding-top: 10px;
-                color: #666666;
+                font-size: 15px;
+                line-height: 175%;
             }}
             ul {{
-                padding-left: 20px;
-                margin-bottom: 16px;
+                padding-left: 15px;
+                margin-bottom: 15px;
             }}
             li {{
                 margin-bottom: 8px;
-                font-size: 16px;
+                font-size: 15px;
             }}
         </style>
     </head>

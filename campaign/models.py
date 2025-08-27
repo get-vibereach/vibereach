@@ -164,12 +164,18 @@ class Lead(models.Model):
     full_name = models.CharField(max_length=255)
     first_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100, blank=True)
+
+    full_arabic_name = models.CharField(max_length=255, blank=True)
+    first_arabic_name = models.CharField(max_length=100, blank=True)
+    last_arabic_name = models.CharField(max_length=100, blank=True)
+    
     position = models.CharField(max_length=100, blank=True)
     email = models.EmailField()
     phone_number = models.CharField(max_length=20, blank=True)
     linkedin_profile = models.URLField(blank=True)
     
     company_name = models.CharField(max_length=255)
+    company_arabic_name = models.CharField(max_length=255, blank=True)
     company_website = models.URLField(blank=True)
     industry = models.CharField(max_length=100, blank=True)
     employee_count = models.CharField(max_length=50, blank=True)
@@ -206,19 +212,24 @@ class Lead(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        # Auto-populate first_name and last_name from full_name if not set
+        # Auto-populate English first_name and last_name
         if self.full_name and (not self.first_name or not self.last_name):
             name_parts = self.full_name.strip().split()
-            
             if len(name_parts) > 0:
-                # First name is the first part
                 self.first_name = name_parts[0]
-                
-                # Last name is everything else (including middle names)
                 if len(name_parts) > 1:
                     self.last_name = ' '.join(name_parts[1:])
         
+        # Auto-populate Arabic first_arabic_name and last_arabic_name
+        if self.full_arabic_name and (not self.first_arabic_name or not self.last_arabic_name):
+            arabic_parts = self.full_arabic_name.strip().split()
+            if len(arabic_parts) > 0:
+                self.first_arabic_name = arabic_parts[0]
+                if len(arabic_parts) > 1:
+                    self.last_arabic_name = ' '.join(arabic_parts[1:])
+
         super().save(*args, **kwargs)
+
 
     def __str__(self):
         return f"{self.full_name}"
@@ -229,8 +240,12 @@ class Lead(models.Model):
             'full_name': self.full_name,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'full_arabic_name': self.full_arabic_name,
+            'first_arabic_name': self.first_arabic_name,
+            'last_arabic_name': self.last_arabic_name,
             'position': self.position,
             'company_name': self.company_name,
+            'company_arabic_name': self.company_arabic_name,
             'company_website': self.company_website,
             'industry': self.industry,
             'location': self.location,
@@ -415,36 +430,56 @@ class Message(models.Model):
 
     def _convert_markdown_to_html(self, text):
         """
-        Converts markdown links [text](url) to <a href="url">text</a>.
+        Converts markdown text into clean HTML suitable for email.
+        Each line becomes its own <p dir="auto"> block.
         """
-        result = markdown.markdown(text)
-        return result
+        # Convert markdown first
+        #result = markdown.markdown(text, extensions=["sane_lists"])
+
+        # Split by newlines and wrap each non-empty line in <p>
+        paragraphs = []
+        for line in text.splitlines():
+            line = line.strip()
+            if line:  # skip empty lines
+                paragraphs.append(f'<p dir="auto">{markdown.markdown(line).replace("<p>", '<p dir="auto">')}</p>')
+
+        # Join back
+        return "\n".join(paragraphs)
+
 
 
     def save(self, *args, **kwargs):
-        # Combine all message components into full_content
+        # Collect all but the signature
         parts = []
         if self.intro:
             parts.append(self.intro)
         if self.content:
             parts.append(self.content)
         if self.cta:
-            parts.append(f"{self.cta}")  
+            parts.append(self.cta)  
         if self.ps:
-            parts.append(f"{self.ps}")
+            parts.append(self.ps)
         if self.pps:
-            parts.append(f"{self.pps}")
-        if self.end:
-            parts.append(f"{self.end}")      
-            
+            parts.append(self.pps)
+
+        # Combine with double newlines for spacing
         combined_content = "\n\n".join(parts)
 
-        # Apply markdown link replacements
+        # Apply markdown conversion (with double <br>)
         combined_content = self._convert_markdown_to_html(combined_content)
 
+        # Handle signature (end) separately: single break before it
+        if self.end:
+            end_html = markdown.markdown(
+                self.end,
+                extensions=["nl2br", "sane_lists"] 
+            )
+            end_html = end_html.replace("<p>", '<p dir="auto" class="signature">')
+            combined_content += f"{end_html}"
+
         self.full_content = combined_content
-        
-        super().save(*args, **kwargs)        
+        super().save(*args, **kwargs)
+      
 
 
 

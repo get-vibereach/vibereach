@@ -78,32 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-function DirAutoAll() {
-    const textElements = document.querySelectorAll(
-        'p, h1, h2, h3, h4, h5, h6, span, a, li, dt, dd, label, caption, th, td, blockquote, figcaption, legend, button, input, textarea, pre'
-    );
-
-    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/; // Arabic Unicode range
-
-    textElements.forEach(element => {
-        // Set font size if defined
-        if (typeof fontSize !== "undefined") {
-            element.style.fontSize = fontSize;
-        }
-
-        // Set direction
-        element.setAttribute("dir", "auto");
-
-        // Detect Arabic text
-        if (arabicRegex.test(element.textContent)) {
-            element.classList.add("fustat-font");
-            element.style.setProperty("font-family", '"Fustat"', "important");
-        }
-    });
-}
-
-
-document.addEventListener('DOMContentLoaded', DirAutoAll);
 </script>  
 {% endblock %}
 
