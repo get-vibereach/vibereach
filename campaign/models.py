@@ -231,7 +231,9 @@ class Lead(models.Model):
             'last_name': self.last_name,
             'position': self.position,
             'company_name': self.company_name,
+            'company_website': self.company_website,
             'industry': self.industry,
+            'location': self.location,
             'source': self.get_source_display(),
             'lead_type': self.get_lead_type_display(),
             'created_at': self.created_at.isoformat()
@@ -243,7 +245,20 @@ class Lead(models.Model):
         Return model field names, excluding relations and system fields.
         Optionally pass a list of fields to exclude.
         """
-        exclude = exclude or []
+        exclude = [
+            "id",
+            "lead_list",
+            "subscribed_company",
+            "email",
+            "phone_number",
+            "linkedin_profile",
+            "employee_count",
+            "campany_linkedin_page",
+            "source",
+            "lead_type",
+            "tags",
+            "created_at",            
+        ]
 
         return [
             field.name
