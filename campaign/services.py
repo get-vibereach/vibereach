@@ -73,14 +73,14 @@ class AnalyticsService:
             logger.error(f"Error updating analytics for email opened: {str(e)}")
     
     @staticmethod
-    def handle_link_clicked(link):
+    def handle_message_assignment_visited(message_assignment):
         """
-        Handle analytics when a link is clicked.
+        Handle analytics when a link in a message assignment is visited.
         Uses incremental updates for performance.
         """
         try:
-            campaign = link.campaign
-            campaign_lead = link.campaign_lead
+            campaign = message_assignment.campaign
+            campaign_lead = message_assignment.campaign_lead
             
             if not campaign or not campaign_lead:
                 return
@@ -88,24 +88,24 @@ class AnalyticsService:
             # Get or create campaign stats
             stats, created = CampaignStats.objects.get_or_create(campaign=campaign)
             
-            # Check if this is the lead's first click on any link
+            # Check if this is the lead's first click in this campaign by seeing
+            # if any *other* message assignments for this lead have been visited.
             lead_first_click = not MessageAssignment.objects.filter(
                 campaign_lead=campaign_lead,
-                url__visit_count__gt=0
-            ).exists() and not MessageAssignment.objects.filter(
-                campaign_lead=campaign_lead,
-                newsletter_link__visit_count__gt=0
-            ).exists()
+                visit_count__gt=0
+            ).exclude(id=message_assignment.id).exists()
             
-            if lead_first_click:
-                # This lead just clicked their first link
+            # This logic assumes this handler is called right after the visit_count is incremented to 1.
+            # If the visit_count is exactly 1 and no other messages have clicks, it's the first click.
+            if message_assignment.visit_count == 1 and lead_first_click:
+                # This lead just clicked their first link in the campaign
                 stats.clicked_count = F('clicked_count') + 1
                 stats.save(update_fields=['clicked_count'])
                 
-            logger.info(f"Analytics updated for link clicked: {link.id}")
+            logger.info(f"Analytics updated for message assignment visited: {message_assignment.id}")
             
         except Exception as e:
-            logger.error(f"Error updating analytics for link clicked: {str(e)}")
+            logger.error(f"Error updating analytics for message assignment visited: {str(e)}")
     
     @staticmethod
     def handle_email_replied(message_assignment):
