@@ -340,7 +340,7 @@ class MessageAssignmentAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Message Assignment', {
-            'fields': ('campaign', 'campaign_lead', 'message', 'create_for_all_leads', 'link', 'personlized_msg_tmp', 'personlized_msg_to_send', 'delayed_by_days', 'sent', 'sent_at', 'opened', 'opened_at', 'responded', 'responded_at', 'responded_content')
+            'fields': ('campaign', 'campaign_lead', 'message', 'create_for_all_leads', 'personlized_msg_tmp', 'personlized_msg_to_send', 'delayed_by_days', 'sent', 'sent_at', 'opened', 'opened_at', 'link', 'visit_count', 'visited_at', 'responded', 'responded_at', 'responded_content')
         }),
     )
     
