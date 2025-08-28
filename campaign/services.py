@@ -86,28 +86,25 @@ class AnalyticsService:
                 logger.warning(f"Missing campaign or campaign_lead for MessageAssignment {message_assignment.id}")
                 return
 
-            # --- REVISED AND SIMPLIFIED LOGIC ---
+            # The click is happening now, so check the old value
+            if message_assignment.visit_count == 0:
+                print(True)
+                # This is the first time this specific message got clicked.
+                # Now also check: is it the first click across ALL messages for this lead?
+                already_clicked = MessageAssignment.objects.filter(
+                    campaign_lead=campaign_lead,
+                    visit_count__gt=0
+                ).exists()
 
-            # Step 1: Count how many messages with clicks this lead has for this campaign.
-            # This query gives us the "ground truth" from the database, avoiding stale object issues.
-            total_clicked_messages_for_lead = MessageAssignment.objects.filter(
-                campaign_lead=campaign_lead,
-                visit_count__gt=0
-            ).count()
-
-            # Step 2: If the count is exactly 1, it means the click that just happened
-            # was the lead's VERY FIRST click in this campaign. This is the only
-            # time we should increment the main campaign counter.
-            if total_clicked_messages_for_lead == 1:
-                # This is the one we want to count!
-                stats, _ = CampaignStats.objects.get_or_create(campaign=campaign)
-                # Use F() expression for a safe, atomic update.
-                stats.clicked_count = F('clicked_count') + 1
-                stats.save(update_fields=['clicked_count'])
-                logger.info(f"✅ Analytics stats updated for lead's first-ever click. MA_ID: {message_assignment.id}, Lead: {campaign_lead.id}")
+                if not already_clicked:
+                    # ✅ First-ever click across the whole campaign
+                    stats, _ = CampaignStats.objects.get_or_create(campaign=campaign)
+                    stats.clicked_count = F('clicked_count') + 1
+                    stats.save(update_fields=['clicked_count'])
+                    logger.info(f"✅ Lead's first-ever click. MA_ID: {message_assignment.id}, Lead: {campaign_lead.id}")
             else:
-                # This is a subsequent click by the same lead (on this or another link). Do nothing.
-                logger.info(f"ℹ️ Subsequent click detected. No campaign stats update needed. MA_ID: {message_assignment.id}, Total Clicks for Lead: {total_clicked_messages_for_lead}")
+                logger.info(f"ℹ️ Subsequent click on this message. No stats update. MA_ID: {message_assignment.id}")
+
 
         except Exception as e:
             logger.error(f"❌ Error updating analytics for message assignment visited: {str(e)}", exc_info=True)
