@@ -267,13 +267,13 @@ def campaign_leads(request, pk):
 
 
 
+
 def campaign_sequence(request, pk):
-    campaign_status= get_campaign_status(request, pk)
+    campaign_status = get_campaign_status(request, pk)
     is_view_only = is_campaign_view_only(pk)
 
-    all_messages, products= get_messages_and_products(request)
+    all_messages, products = get_messages_and_products(request)
 
-    # Get unique messages with their assignment counts - use distinct() to avoid duplicates
     messages = all_messages.filter(
         messageassignment__campaign_id=pk
     ).annotate(
@@ -281,20 +281,29 @@ def campaign_sequence(request, pk):
         sent_count=Count('messageassignment', filter=Q(messageassignment__sent=True)),
         response_count=Count('messageassignment', filter=Q(messageassignment__responded=True)),
         delayed_by_days=Min('messageassignment__delayed_by_days')
-    ).distinct().order_by('id')  # Use distinct() and order by id for consistent ordering
+    ).distinct().order_by('messageassignment__delayed_by_days', 'id')
 
-    products= products.filter(product_campaigns=pk)
-    all_messages= all_messages.filter(product__in=products)
-    # here i wanna make all_messages.exclude the ones that are not in the campaign
-    all_messages= all_messages.exclude(id__in=messages.values_list('id', flat=True))
+    products = products.filter(product_campaigns=pk)
+    all_messages = all_messages.filter(product__in=products)
+    all_messages = all_messages.exclude(id__in=messages.values_list('id', flat=True))
+
+    last_assignment_delay_value = 0 
+
+    last_assignment_in_sequence = MessageAssignment.objects.filter(
+        campaign_id=pk
+    ).order_by('-delayed_by_days', '-id').first()
+
+    if last_assignment_in_sequence:
+        last_assignment_delay_value = last_assignment_in_sequence.delayed_by_days
 
     context = {
         'campaign_id': pk,
         'current_tab': 'sequences',
-        'messages': messages,  # Now contains aggregated data without duplicates
-        'all_messages': all_messages,  # For the "Add" dropdown
+        'campaign_assigned_messages': messages,
+        'all_messages': all_messages,
         'view_only': is_view_only,
-        'campaign_status': campaign_status
+        'campaign_status': campaign_status,
+        'last_assigned_message_delay': last_assignment_delay_value,
     }
     return render(request, "app/campaign/sequence.html", context)
 
