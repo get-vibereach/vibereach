@@ -85,7 +85,7 @@
                 <option value="click-rate">Click Rate</option>
             </select> -->
             <div class="text-sm text-gray-500">
-                <span id="message-count">{{ messages|length }}</span> messages
+                <span id="message-count">{{ messages_query|length }}</span> messages
             </div>
         </div>
     </div>
@@ -105,7 +105,7 @@
                     </tr>
                 </thead>
                 <tbody id="messages-table-body">
-                    {% for message in messages %}
+                    {% for message in messages_query %}
                     <tr class="hover:bg-gray-50 cursor-pointer message-row" 
                         onclick="editMessage({{ message.id }})"
                         data-product="{{ message.product|lower }}"

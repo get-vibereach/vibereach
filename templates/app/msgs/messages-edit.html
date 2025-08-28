@@ -115,8 +115,8 @@
                 <div class="flex justify-between items-center">
                     <h3 class="font-semibold text-gray-900">Message Templates</h3>
                     <span class="text-sm text-gray-500" id="message-count">
-                        {% if messages %}
-                            {{ messages|length }} message{{ messages|length|pluralize }}
+                        {% if messages_query %}
+                            {{ messages_query|length }} message{{ messages_query|length|pluralize }}
                         {% else %}
                             No messages
                         {% endif %}
@@ -141,8 +141,8 @@
             </div>
             <!-- Messages Table -->
             <div class="flex-1 overflow-y-auto scrollbar-left" id="messages-container">
-                {% if messages %}
-                    {% for message in messages %}
+                {% if messages_query %}
+                    {% for message in messages_query %}
                     <div class="message-row p-4 border-b border-base-200 {% if message.id == message_id %}active-message
                                 {% elif not message_id and forloop.first %}active-message
                                 {% endif %}" 
@@ -187,13 +187,13 @@
         </div>
         <!-- Right Column: Message Editor/Preview -->
         <div class="flex-1 flex flex-col bg-white border border-base-200 rounded-lg h-[calc(100vh-180px)] relative">
-            {% if messages %}
+            {% if messages_query %}
                 <!-- Show preview by default if messages exist -->
                 <div id="message-preview" class="flex-1 overflow-y-auto mt-4">
                     <button id="edit-preview-btn" class="btn btn-outline" style="margin-top: 0px;" onclick="showEditor()">
                         <i class="fa-solid fa-edit mr-2"></i>Edit
                     </button>
-                    {% for message in messages %}
+                    {% for message in messages_query %}
                     <div id="preview-content-{{ message.id }}" class="message-preview-content" style="display: {% if message.id == message_id %}block{% elif not message_id and forloop.first %}block{% else %}none{% endif %}">
                         {{ message.full_content|safe }}
                     </div>
@@ -201,14 +201,14 @@
                 </div>
             {% endif %}
             <!-- Message Form -->
-            <div id="message-form-container" class="flex-grow overflow-y-auto" style="display: {% if messages %}none{% else %}block{% endif %}">
+            <div id="message-form-container" class="flex-grow overflow-y-auto" style="display: {% if messages_query %}none{% else %}block{% endif %}">
                 <form id="message-form" class="p-4 space-y-4">
                     <!-- Header -->
                     <div class="flex justify-between items-center pb-4 border-b border-base-200">
                         <div class="text-sm">
                             <span class="font-bold text-gray-800 text-base">Subject</span>
                             <span class="text-gray-500 ml-2 text-base" id="subject-display">
-                                {% if messages %}{{ messages.0.subject }}{% else %}New Message{% endif %}
+                                {% if messages_query %}{{ messages_query.0.subject }}{% else %}New Message{% endif %}
                             </span>
                         </div>
                         <div class="flex items-center gap-2">
@@ -224,7 +224,7 @@
                         </label>
                         <select class="select select-bordered w-full bg-white text-base" id="message-product" name="product">
                             {% for product in products %}
-                            <option value="{{ product.id }}" {% if messages and messages.0.product.id == product.id %}selected{% endif %}>
+                            <option value="{{ product.id }}" {% if messages_query and messages_query.0.product.id == product.id %}selected{% endif %}>
                                 {{ product.name }}
                             </option>
                             {% endfor %}
@@ -240,7 +240,7 @@
                                class="input input-bordered w-full bg-white text-base text-editor-style"
                                id="message-subject"
                                name="subject"
-                               value="{% if messages %}{{ messages.0.subject }}{% endif %}">
+                               value="{% if messages_query %}{{ messages_query.0.subject }}{% endif %}">
                     </div>
                     <!-- Intro -->
                     <div id="msg-intro-form-driver">
@@ -251,7 +251,7 @@
                                   rows="3"
                                   placeholder="Start typing here..."
                                   id="message-intro"
-                                  name="intro">{% if messages %}{{ messages.0.intro }}{% endif %}</textarea>
+                                  name="intro">{% if messages_query %}{{ messages_query.0.intro }}{% endif %}</textarea>
                     </div>
                     <!-- Content -->
                     <div id="msg-content-form-driver">
@@ -262,7 +262,7 @@
                                   rows="6"
                                   placeholder="Start typing here..."
                                   id="message-content"
-                                  name="content">{% if messages %}{{ messages.0.content }}{% endif %}</textarea>
+                                  name="content">{% if messages_query %}{{ messages_query.0.content }}{% endif %}</textarea>
                     </div>
                     <!-- CTA -->
                     <div id="msg-cta-form-driver">
@@ -274,7 +274,7 @@
                                class="input input-bordered w-full bg-white text-base text-editor-style"
                                id="message-cta"
                                name="cta"
-                               value="{% if messages %}{{ messages.0.cta }}{% endif %}">
+                               value="{% if messages_query %}{{ messages_query.0.cta }}{% endif %}">
                     </div>
                     <!-- P.S -->
                     <div id="msg-ps-form-driver">
@@ -285,7 +285,7 @@
                                   rows="2"
                                   placeholder="P.S. message..."
                                   id="message-ps"
-                                  name="ps">{% if messages %}{{ messages.0.ps }}{% endif %}</textarea>
+                                  name="ps">{% if messages_query %}{{ messages_query.0.ps }}{% endif %}</textarea>
                     </div>
                     <!-- P.P.S -->
                     <div id="msg-pps-form-driver">
@@ -296,7 +296,7 @@
                                   rows="2"
                                   placeholder="P.P.S. message..."
                                   id="message-pps"
-                                  name="pps">{% if messages %}{{ messages.0.pps }}{% endif %}</textarea>
+                                  name="pps">{% if messages_query %}{{ messages_query.0.pps }}{% endif %}</textarea>
                     </div>
                     <!-- End/Signature -->
                     <div id="email-signature-form-driver">
@@ -307,7 +307,7 @@
                                   rows="3"
                                   placeholder="Best regards,&#10;Your name"
                                   id="message-end"
-                                  name="end">{% if messages %}{{ messages.0.end }}{% endif %}</textarea>
+                                  name="end">{% if messages_query %}{{ messages_query.0.end }}{% endif %}</textarea>
                     </div>
                 </form>
             </div>
@@ -367,7 +367,7 @@
 
 <script>  
 // Message Management System
-let activeMessage = {% if message_id %}{{ message_id }}{% elif messages %}{{ messages.0.id }}{% else %}null{% endif %};
+let activeMessage = {% if message_id %}{{ message_id }}{% elif messages_query %}{{ messages_query.0.id }}{% else %}null{% endif %};
 let messages = {};
 let lastFocusedInput = null;
 let leadFields = [];
@@ -378,8 +378,8 @@ let activeInlineInput = null;
 let triggerStartPosition = -1;
 let highlightedIndex = -1;
 // Initialize messages from Django template if they exist
-{% if messages %}
-    {% for message in messages %}
+{% if messages_query %}
+    {% for message in messages_query %}
     messages[{{ message.id }}] = {
         id: {{ message.id }},
         product_id: {{ message.product.id }},
@@ -500,10 +500,20 @@ function saveCurrentMessage(messageId) {
         },
         body: JSON.stringify(dataToSend),
     })
+    // --- START OF MODIFICATION ---
     .then(response => {
-        if (!response.ok) throw new Error('Failed to save message');
+        if (response.status === 400) { // Bad Request, likely validation error
+            return response.json().then(errors => {
+                handleFormErrors(errors);
+                throw new Error('Validation failed'); // Prevent further processing
+            });
+        }
+        if (!response.ok) {
+            throw new Error('Failed to save message');
+        }
         return response.json();
     })
+    // --- END OF MODIFICATION ---
     .then(data => {
         // Update local state
         messages[messageId] = {
@@ -517,10 +527,14 @@ function saveCurrentMessage(messageId) {
         updateMessageRow(messageId, messages[messageId]);
         ModalSystem.toast(`Message saved`, 'success');
     })
+    // --- START OF MODIFICATION ---
     .catch(error => {
-        console.error('Error saving message:', error);
-        ModalSystem.toast('Error saving message', 'error');
+        if (error.message !== 'Validation failed') {
+            console.error('Error saving message:', error);
+            ModalSystem.toast('Error saving message', 'error');
+        }
     });
+    // --- END OF MODIFICATION ---
 }
 function saveNewMessage() {
     // Get values from the form
@@ -544,10 +558,20 @@ function saveNewMessage() {
         },
         body: JSON.stringify(newMessage),
     })
+    // --- START OF MODIFICATION ---
     .then(response => {
-        if (!response.ok) throw new Error('Failed to create message');
+        if (response.status === 400) { // Bad Request, likely validation error
+            return response.json().then(errors => {
+                handleFormErrors(errors);
+                throw new Error('Validation failed'); // Prevent further processing
+            });
+        }
+        if (!response.ok) {
+            throw new Error('Failed to create message');
+        }
         return response.json();
     })
+    // --- END OF MODIFICATION ---
     .then(data => {
         // Check if we're replacing a temporary message
         let tempMessageId = null;
@@ -621,10 +645,62 @@ function saveNewMessage() {
         selectMessage(data.id);
         ModalSystem.toast('New message created successfully!', 'success');
     })
+    // --- START OF MODIFICATION ---
     .catch(error => {
-        console.error('Error creating message:', error);
-        ModalSystem.toast('Error creating message', 'error');
+        if (error.message !== 'Validation failed') {
+            console.error('Error creating message:', error);
+            ModalSystem.toast('Error creating message', 'error');
+        }
     });
+    // --- END OF MODIFICATION ---
+}
+// --- NEW FUNCTION: HANDLES FORM VALIDATION ERRORS ---
+function handleFormErrors(errors) {
+    // Clear any previous error highlights
+    const errorClasses = ['input-error', 'select-error', 'textarea-error'];
+    document.querySelectorAll(`.${errorClasses.join(', .')}`).forEach(el => {
+        el.classList.remove(...errorClasses);
+    });
+
+    ModalSystem.toast('Please fill in all required fields.', 'error');
+
+    // Map API field names to form element IDs
+    const fieldMap = {
+        product: 'message-product',
+        subject: 'message-subject',
+        content: 'message-content',
+        intro: 'message-intro',
+        cta: 'message-cta',
+        ps: 'message-ps',
+        pps: 'message-pps',
+        end: 'message-end'
+    };
+
+    // Find the first field that has an error
+    const firstErrorField = Object.keys(errors)[0];
+    if (!firstErrorField) return;
+
+    const elementId = fieldMap[firstErrorField];
+    if (!elementId) return;
+
+    const element = document.getElementById(elementId);
+    if (element) {
+        // Determine the correct DaisyUI error class based on the element type
+        let errorClass = 'input-error';
+        if (element.tagName === 'SELECT') errorClass = 'select-error';
+        if (element.tagName === 'TEXTAREA') errorClass = 'textarea-error';
+        
+        element.classList.add(errorClass);
+
+        // Add a listener to remove the error highlight when the user starts typing
+        element.addEventListener('input', () => {
+            element.classList.remove(errorClass);
+        }, { once: true }); // The listener will be removed after it runs once
+
+        // Scroll the problematic field into view and focus it
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.focus();
+    }
 }
 function updateMessageRow(messageId, messageData) {
     const messageRow = document.querySelector(`[data-message="${messageId}"]`);
@@ -1284,8 +1360,8 @@ function updateHighlight() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    {% if messages %}
-        selectMessage({{ message_id|default:messages.0.id }});
+    {% if messages_query %}
+        selectMessage({{ message_id|default:messages_query.0.id }});
         showPreview();
     {% endif %}
     

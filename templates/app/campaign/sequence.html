@@ -8,8 +8,8 @@
     .message-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1.5rem;
-        padding: 1rem;
+        gap: 2rem;
+        padding: 2rem;
     }
     
     .message-card {
@@ -129,8 +129,8 @@
 
     <!-- Message Grid -->
     <div class="message-grid">
-        {% for message in messages %}
-        <div id="assigned-msg-driver" class="message-card always-interaction-allowed" style="padding-bottom: 10px;  padding-right: 15px; min-width: 350px;" onclick="openMessageModal({{ message.id }})">
+        {% for message in campaign_assigned_messages %}
+        <div id="assigned-msg-driver" class="message-card always-interaction-allowed" style="padding-bottom: 10px;  padding-right: 15px; min-width: 350px;" onclick="showMessage({{ message.id }})">
             <div class="flex justify-between items-start">
                 <h3 class="font-medium text-gray-900">{{ message.subject }}</h3>
                 <div class="text-right">
@@ -142,7 +142,7 @@
                 {% if message.delayed_by_days == 0 %}
                     this is the first message in this sequence.
                 {% else %}
-                    this message will be send in {{ message.delayed_by_days }} days, after the last one.
+                    this message will be send in <span class="text-green-700">{{ message.delayed_by_days }} days</span>, after the last one.
                 {% endif %}        
             </p>
 
@@ -211,25 +211,27 @@
             
             <div class="divider my-0"></div>
             
-            {% if messages.count > 0 %}
-            <!-- Delay Input -->
-            <div class="form-control w-full">
-                <label class="label">
-                    <span class="label-text font-medium">Days After Previous Message</span>
-                </label>
-                <div class="flex items-center gap-2">
-                    <input name="number" id="delayed-from-last-message" 
-                           type="number" 
-                           class="input input-bordered w-24 text-center focus:ring-2 focus:ring-primary" 
-                           min="0" 
-                           value="0" 
-                           required>
-                    <span class="text-sm text-gray-500">days</span>
-                </div>
-                <label class="label">
-                    <span class="label-text-alt text-gray-500">Number of days after the previous message in sequence</span>
-                </label>
-            </div>
+            {% if campaign_assigned_messages.count > 0 %}
+                {% with min_days_after=last_assigned_message_delay|add:1 %}
+                    <!-- Delay Input -->
+                    <div class="form-control w-full">
+                        <label class="label">
+                            <span class="label-text font-medium">Days After Previous Message</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <input name="number" id="delayed-from-last-message"
+                                type="number"
+                                class="input input-bordered w-24 text-center focus:ring-2 focus:ring-primary"
+                                min="{{ min_days_after }}" {# Dynamically set the min attribute #}
+                                value="{{ min_days_after }}" {# Pre-fill with the calculated min value as a sensible default #}
+                                required>
+                            <span class="text-sm text-gray-500">days</span>
+                        </div>
+                        <label class="label">
+                            <span class="label-text-alt text-gray-500">Number of days after the previous message in sequence</span>
+                        </label>
+                    </div>
+                {% endwith %}
             {% endif %}
             
             <!-- Actions -->
@@ -261,107 +263,6 @@
 
 
 
-<!-- Assignments Modal -->
-<dialog id="assignment-modal" class="modal">
-    <div class="modal-box w-11/12 max-w-5xl bg-base-100 rounded-xl" style="border: none !important; box-shadow: none !important;">
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-lg">Message Assignments</h3>
-
-            <div class="flex items-center gap-2">
-                <div id="search-container" class="input-group hidden">
-                    <input
-                        type="text"
-                        id="assignment-search"
-                        placeholder="Search by name or email..."
-                        class="input input-bordered w-full"
-                        oninput="filterAssignments()"
-                    />
-                </div>
-                <button id="search-toggle-btn" class="btn btn-sm btn-ghost" onclick="toggleSearch()">
-                    <i class="fas fa-search"></i>
-                </button>
-                <form method="dialog">
-                    <button class="btn btn-icon btn-circle text-gray-700">✕</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-
-            <!-- Total Assignments Card (Themed with Accent Color) -->
-            <div class="p-4 shadow-sm border rounded-lg 
-                        bg-[oklch(var(--a)/0.1)]      <!-- Light accent background tint -->
-                        border-[oklch(var(--a)/0.2)]">  <!-- Subtle accent border -->
-                
-                <div class="text-sm font-medium 
-                            text-[oklch(var(--a))]">     <!-- Full accent color for the label -->
-                    Total Assignments
-                </div>
-                <div class="text-3xl font-bold text-base-content mt-1" id="total-assignments">7</div>
-            </div>
-
-            <!-- Sent Card (Themed with Success Color) -->
-            <div class="p-4 shadow-sm border rounded-lg 
-                        bg-[oklch(var(--su)/0.1)]     <!-- Light success background tint -->
-                        border-[oklch(var(--su)/0.2)]"> <!-- Subtle success border -->
-                
-                <div class="text-sm font-medium 
-                            text-[oklch(var(--su))]">    <!-- Full success color for the label -->
-                    Sent
-                </div>
-                <div class="text-3xl font-bold text-base-content mt-1" id="sent-count">0</div>
-            </div>
-
-            <!-- Responses Card (Themed with Info Color) -->
-            <div class="p-4 shadow-sm border rounded-lg 
-                        bg-[oklch(var(--in)/0.1)]      <!-- Light info background tint -->
-                        border-[oklch(var(--in)/0.2)]">   <!-- Subtle info border -->
-                
-                <div class="text-sm font-medium 
-                            text-[oklch(var(--in))]">     <!-- Full info color for the label -->
-                    Responses
-                </div>
-                <div class="text-3xl font-bold text-base-content mt-1" id="response-count">0</div>
-            </div>
-
-        </div>
-
-        <!-- Table -->
-        <div class="overflow-x-auto rounded-lg border border-base-300 shadow-sm">
-            <table class="table w-full">
-                <thead class="bg-base-200">
-                    <tr class="text-sm text-neutral-600">
-                        <th>Lead</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                        <th>Sent At</th>
-                        <th>Response</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="assignments-table-body" class="text-sm text-neutral-800">
-                    <!-- Rows populated dynamically -->
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Actions -->
-        <div class="modal-action mt-6 border-t border-base-300 pt-4">
-            <!-- <button class="btn btn-primary gap-2" onclick="exportAssignments()">
-                <i class="fas fa-download"></i> Export
-            </button> -->
-            <form method="dialog">
-                <button class="btn btn-ghost">Close</button>
-            </form>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
-
 
 <script src="{% static 'js/block-interactions.js' %}"></script> 
 <script>
@@ -373,37 +274,10 @@
     // Assignments Modal
     let currentMessageId = null;
 
-    function openMessageModal(messageId) {
-        currentMessageId = messageId;
-        const campaign_id = {{ campaign_id }};
-        window.ModalSystem.loading('Loading assignments...');
-
-        const url = "{% url 'campaign_sequence_message' 999 %}".replace('999', messageId);
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            body: JSON.stringify({
-                campaign_id: campaign_id
-            })
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
-        })
-        .then(data => {
-            renderAssignmentModal(data);
-            document.getElementById('assignment-modal').showModal();
-            window.ModalSystem.hideLoading();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            window.ModalSystem.hideLoading();
-            window.ModalSystem.error('Failed to load assignments: ' + error.message);
-        });
+    function showMessage(messageId) {
+        const messageEditUrlTemplate = "{% url 'messages_edit' '00000' %}";
+        const finalUrl = messageEditUrlTemplate.replace('00000', messageId);
+        window.location.href = finalUrl;
     }
 
     // Store all assignments for search functionality
@@ -636,7 +510,7 @@
 
     function AssignMessage2Sequence(campaignId) {
         const messageId = document.getElementById('message-select').value;
-        {% if messages.count > 0 %}
+        {% if campaign_assigned_messages.count > 0 %}
         const DelayedFromLastMsg= document.getElementById('delayed-from-last-message').value;
         {% else %}
         const DelayedFromLastMsg=0;
@@ -776,9 +650,10 @@ document.addEventListener("DOMContentLoaded", () => {
       steps: [
         {
           element: "#assigned-msg-driver",
+          disableActiveInteraction: true,
           popover: {
             title: "here is the msg assigned to your campaign",
-            description: "click it to see it is sending details; ESC to exit.",  
+            description: "on click; it shows you the msg template",
             position: "left"
           }
         },
