@@ -7,7 +7,7 @@ from django.urls import reverse
 from pytracking import Configuration
 from pytracking.html import adapt_html
 from pytracking.django import OpenTrackingView, ClickTrackingView
-from .models import MessageAssignment, CampaignStats
+from .models import MessageAssignment
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ class CustomOpenTrackingView(OpenTrackingView):
 
     def notify_tracking_event(self, tracking_result):
         """
-        Handle open tracking event
+        Handle open tracking event and delegate analytics to the service layer.
         """
         try:
             metadata = tracking_result.metadata
@@ -113,7 +113,6 @@ class CustomOpenTrackingView(OpenTrackingView):
                 logger.warning("No message_assignment_id in tracking metadata")
                 return
                 
-            # Get the message assignment
             try:
                 message_assignment = MessageAssignment.objects.get(id=message_assignment_id)
             except MessageAssignment.DoesNotExist:
@@ -128,45 +127,19 @@ class CustomOpenTrackingView(OpenTrackingView):
                 
                 logger.info(f"✅ Email opened: MessageAssignment {message_assignment_id}")
                 
-                # Update campaign stats
-                self._update_campaign_stats_for_open(message_assignment)
+                # Use the centralized analytics service
+                from .services import AnalyticsService
+                AnalyticsService.handle_email_opened(message_assignment)
             else:
                 logger.info(f"📧 Email already marked as opened: MessageAssignment {message_assignment_id}")
                 
         except Exception as e:
             logger.error(f"Error handling open tracking event: {str(e)}")
-    
-    def _update_campaign_stats_for_open(self, message_assignment):
-        """
-        Update campaign statistics for email open
-        """
-        try:
-            campaign = message_assignment.campaign
-            campaign_stats, created = CampaignStats.objects.get_or_create(
-                campaign=campaign,
-                defaults={
-                    'clicked_count': 0,
-                    'sequence_started_count': 0,
-                    'opened_count': 0,
-                    'replied_count': 0,
-                    'opportunities_count': 0,
-                    'conversions_count': 0
-                }
-            )
-            
-            # Increment opened count
-            campaign_stats.opened_count += 1
-            campaign_stats.save(update_fields=['opened_count'])
-            
-            logger.info(f"📊 Updated campaign stats: opened_count incremented for campaign {campaign.id}")
-            
-        except Exception as e:
-            logger.error(f"Error updating campaign stats for open: {str(e)}")
 
 
 class CustomClickTrackingView(ClickTrackingView):
     """
-    Custom click tracking view that integrates with our Link model
+    Custom click tracking view that integrates with our MessageAssignment model
     """
 
     def get_configuration(self):
@@ -183,7 +156,7 @@ class CustomClickTrackingView(ClickTrackingView):
 
     def notify_tracking_event(self, tracking_result):
         """
-        Handle click tracking event
+        Handle click tracking event and delegate analytics to the service layer.
         """
         try:
             metadata = tracking_result.metadata
@@ -193,60 +166,20 @@ class CustomClickTrackingView(ClickTrackingView):
                 logger.warning("No message_assignment_id in click tracking metadata")
                 return
                 
-            # Get the message assignment
             try:
                 message_assignment = MessageAssignment.objects.get(id=message_assignment_id)
             except MessageAssignment.DoesNotExist:
                 logger.error(f"MessageAssignment {message_assignment_id} not found")
                 return
             
-            # Get the clicked URL from tracking result
-            clicked_url = tracking_result.tracked_url
+            # Increment the visit count on the message assignment
+            message_assignment.track_visit()
             
-            # Find or create a link record for this click
-            # This integrates with your existing Link model
-            if clicked_url:
-                # This is a click on the main CTA link
-                message_assignment.link = clicked_url
-                message_assignment.save(update_fields=['link'])
-                is_first_visit = message_assignment.visit_count == 0
-                message_assignment.track_visit()
-                
-                logger.info(f"🔗 Main CTA link clicked: {clicked_url} for MessageAssignment {message_assignment_id}")
-                
-                # Update campaign stats if this is the first visit
-                if is_first_visit:
-                    self._update_campaign_stats_for_click(message_assignment)
-                    
-            else:
-                logger.info(f"🔗 Other link clicked: {clicked_url} for MessageAssignment {message_assignment_id}")
+            logger.info(f"🔗 Link clicked for MessageAssignment {message_assignment_id}")
+            
+            # Use the centralized analytics service to handle the logic of updating stats
+            from .services import AnalyticsService
+            AnalyticsService.handle_message_assignment_visited(message_assignment)
                 
         except Exception as e:
             logger.error(f"Error handling click tracking event: {str(e)}")
-    
-    def _update_campaign_stats_for_click(self, message_assignment):
-        """
-        Update campaign statistics for link click
-        """
-        try:
-            campaign = message_assignment.campaign
-            campaign_stats, created = CampaignStats.objects.get_or_create(
-                campaign=campaign,
-                defaults={
-                    'clicked_count': 0,
-                    'sequence_started_count': 0,
-                    'opened_count': 0,
-                    'replied_count': 0,
-                    'opportunities_count': 0,
-                    'conversions_count': 0
-                }
-            )
-            
-            # Increment clicked count
-            campaign_stats.clicked_count += 1
-            campaign_stats.save(update_fields=['clicked_count'])
-            
-            logger.info(f"📊 Updated campaign stats: clicked_count incremented for campaign {campaign.id}")
-            
-        except Exception as e:
-            logger.error(f"Error updating campaign stats for click: {str(e)}")

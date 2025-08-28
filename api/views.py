@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from api.utils import auto_unassign_if_list_empty
 from clients.models import Product, EmailAccount
-from campaign.models import Campaign, CampaignLead, CampaignOptions, CampaignStats, Lead, LeadList, Link, Message, MessageAssignment, Schedule
+from campaign.models import Campaign, CampaignLead, CampaignOptions, CampaignStats, Lead, LeadList, Message, MessageAssignment, Schedule
 from .serializers import CampaignOptionsSerializer, CampaignStatsSerializer, LeadSerializer, MessageAssignmentSerializer, ProductSerializer, EmailAccountSerializer, CampaignSerializer, MessageSerializer, LeadListSerializer, ScheduleSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -91,7 +91,6 @@ class MessageAssignmentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyA
     queryset = MessageAssignment.objects.all()
     serializer_class = MessageAssignmentSerializer
 
-
 class MessageAssignmentBulkCreateView(APIView):
     def post(self, request):
         campaign_id = request.data.get("campaign_id")
@@ -127,52 +126,17 @@ class MessageAssignmentBulkCreateView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        utm_params = {
-            "utm_source": request.data.get("utm_source", "email_outreach"),
-            "utm_medium": request.data.get("utm_medium", "email"),
-            "utm_campaign": request.data.get("utm_campaign", campaign.short_name),
-            "utm_term": request.data.get("utm_term", ""),
-            "utm_content": request.data.get("utm_content", ""),
-            "description": request.data.get("description", ""),
-            "purpose": "message",
-        }
-
+        # The logic for creating individual Link objects has been removed.
+        # Instead, we now directly populate the 'link' CharField on the MessageAssignment.
+        
         with transaction.atomic():
-            # PREPARE ALL LINKS FIRST WITH UNIQUE REFS
-            links = []
-            link_refs = set()  # Track refs to ensure uniqueness
-            
-            for lead in campaign_leads:
-                while True:
-                    # Generate the same ref format as in Link.save()
-                    base_ref = f"L{lead.lead.id}-CL{lead.id}-C{campaign.id}"
-                    unique_suffix = uuid.uuid4().hex[:6]
-                    ref = f"{base_ref}-{unique_suffix}"
-                    
-                    # Ensure ref is truly unique in this batch
-                    if ref not in link_refs:
-                        link_refs.add(ref)
-                        break
-                
-                links.append(Link(
-                    campaign=campaign,
-                    campaign_lead=lead,
-                    url=campaign.product.landing_page_url,
-                    ref=ref,
-                    **utm_params
-                ))
-            
-            # Bulk create links (this will still trigger save() methods)
-            created_links = Link.objects.bulk_create(links)
-            
-            # PREPARE MESSAGE ASSIGNMENTS
             assignments = []
-            for link, lead in zip(created_links, campaign_leads):
+            for lead in campaign_leads:
                 assignments.append(MessageAssignment(
                     campaign=campaign,
                     campaign_lead=lead,
                     message=message,
-                    url=link,
+                    link=campaign.product.landing_page_url,  # Populate the new simple link field
                     delayed_by_days=request.data.get("delayed_by_days", 0),
                     personlized_msg_tmp=message.full_content or ""
                 ))
@@ -180,19 +144,26 @@ class MessageAssignmentBulkCreateView(APIView):
             # Bulk create assignments
             created_assignments = MessageAssignment.objects.bulk_create(assignments)
             
-            # UPDATE PERSONALIZED CONTENT IN BATCHES
+            # The logic for updating personalized content remains the same,
+            # as it now correctly pulls from the message's full_content if the tmp field is empty.
+            # However, since we populate `personlized_msg_tmp` during creation, this block is technically redundant
+            # but is kept for safety in case the initial value is empty for any reason.
             batch_size = 500
             for i in range(0, len(created_assignments), batch_size):
                 batch = created_assignments[i:i + batch_size]
+                assignments_to_update = []
                 for assignment in batch:
+                    # The get_personalized_content_tmp now just returns the message content.
                     if not assignment.personlized_msg_tmp:
                         assignment.personlized_msg_tmp = assignment.get_personalized_content_tmp()
-                
-                MessageAssignment.objects.bulk_update(
-                    batch, 
-                    ['personlized_msg_tmp'],
-                    batch_size=batch_size
-                )
+                        assignments_to_update.append(assignment)
+
+                if assignments_to_update:
+                    MessageAssignment.objects.bulk_update(
+                        assignments_to_update, 
+                        ['personlized_msg_tmp'],
+                        batch_size=batch_size
+                    )
 
         return Response(
             {

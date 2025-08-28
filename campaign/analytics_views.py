@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from django.db.models import Sum, Count, Q
 
 from campaign.helpers import get_campaigns_and_products
-from .models import Campaign, CampaignDailyStats, CampaignStats, MessageAssignment, Link, CampaignLead
+from .models import Campaign, CampaignDailyStats, CampaignStats
 import json
 
 

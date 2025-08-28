@@ -9,7 +9,6 @@ urlpatterns = [
     path('tracking/click/<str:path>/', CustomClickTrackingView.as_view(), name='click_tracking'),
 
     # Existing redirect tracking (for backward compatibility)
-    path('redirect/<str:ref_code>/', views.redirect_and_track, name='redirect_and_track_emails'),
     path('leads/<int:pk>/', views.leads_view, name='leads_view'),
     path('leads/lists/', views.leads_lists, name='leads_lists'),
     path('leads/all/', views.show_all_leads_view, name='show_all_leads'),
@@ -29,7 +28,6 @@ urlpatterns = [
     path('messages/', views.messages_view, name='messages'),
     path('messages/edit/<int:pk>/', views.messages_edit_view, name='messages_edit'),
     path('messages/add/', views.messages_add_view, name='messages_add'),
-    path('links/', views.links_view, name='links'),
     path('overall-dashboard/', views.overall_dashboard_view, name='overall_dashboard'),
 
     # Analytics API endpoints

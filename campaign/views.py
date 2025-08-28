@@ -3,7 +3,7 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.http import Http404, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Count, Q, Min
+from django.db.models import Count, Q, Min, Sum
 from django.core.paginator import Paginator
 import pytz
 
@@ -14,76 +14,10 @@ import json
 
 
 from campaign.helpers import get_campaign_status, get_campaigns_and_products, get_company_email_accounts, get_company_products, get_lead_lists_or_both, get_messages_and_products, get_subscribed_company, is_allowed_to_be_launched
-from .models import Campaign, CampaignLead, CampaignOptions, CampaignStats, LeadList, Link, Message, MessageAssignment, Schedule
+from .models import Campaign, CampaignLead, CampaignOptions, CampaignStats, LeadList, Message, MessageAssignment, Schedule
 import logging
 
 logger = logging.getLogger(__name__)
-
-def redirect_and_track(request, ref_code):
-    """
-    Track the visit and redirect to the actual landing page
-
-    This view:
-    1. Looks up the Link by ref_code
-    2. Records the visit
-    3. Updates campaign stats if this is the first visit
-    4. Redirects to the actual landing page with UTM parameters
-    """
-    try:
-        # Find the link with this reference code
-        link = get_object_or_404(Link, ref=ref_code)
-
-        # Check if this is the first visit (before tracking)
-        is_first_visit = link.visit_count == 0
-
-        # Record the visit
-        link.track_visit()
-
-        # Update campaign stats if this is the first visit
-        if is_first_visit and link.campaign:
-            try:
-                campaign_stats, _ = CampaignStats.objects.get_or_create(
-                    campaign=link.campaign,
-                    defaults={
-                        'clicked_count': 0,
-                        'sequence_started_count': 0,
-                        'opened_count': 0,
-                        'replied_count': 0,
-                        'opportunities_count': 0,
-                        'conversions_count': 0
-                    }
-                )
-                # Increment clicked count
-                campaign_stats.clicked_count += 1
-                campaign_stats.save(update_fields=['clicked_count'])
-
-                logger.info(f"Updated campaign stats: clicked_count incremented for campaign {link.campaign.id}")
-            except Exception as stats_error:
-                # Log the error but don't break the redirect
-                logger.error(f"Error updating campaign stats: {str(stats_error)}")
-
-        # Get the campaign lead for potential future use
-        campaign_lead = link.campaign_lead
-        if campaign_lead:
-            # You could update additional stats here
-            # For example, mark that this lead has engaged
-            pass
-
-        # Log the visit for debugging
-        logger.info(f"Tracked visit for link {link.id} with ref {ref_code}")
-
-        # Get the full URL with UTM parameters
-        destination_url = link.full_url()
-
-        # Redirect to the actual landing page
-        return redirect(destination_url)
-
-    except Exception as e:
-        # Log the error but don't expose details to user
-        logger.error(f"Error tracking link visit: {str(e)}")
-        raise Http404("Link not found")
-
-
 
 
 
@@ -428,9 +362,9 @@ def messages_view(request):
         replied_count = assignments.filter(responded=True).count()
         responded_rate = (replied_count / total_assignments * 100) if total_assignments > 0 else 0
 
-        # Links and CTR
-        links = Link.objects.filter(url_message_assignments__message=message).distinct()
-        total_clicks = sum(link.visit_count for link in links)
+        # Clicks and CTR
+        click_data = assignments.aggregate(total_clicks=Sum('visit_count'))
+        total_clicks = click_data['total_clicks'] or 0
         ctr = (total_clicks / total_assignments * 100) if total_assignments > 0 else 0
 
         # Opportunities
@@ -505,18 +439,6 @@ def messages_add_view(request):
     return render(request, "app/msgs/messages-edit.html", context)
 
 
-def links_view(request):
-    """Links management page"""
-    campaigns, products = get_campaigns_and_products(request)
-    links = Link.objects.filter(campaign__in=campaigns)
-
-    context = {
-        'products': products,
-        'campaigns': campaigns,
-        'links': links
-    }
-
-    return render(request, "app/links.html", context)
 
 #@login_required
 def overall_dashboard_view(request):
