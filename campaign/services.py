@@ -88,7 +88,6 @@ class AnalyticsService:
 
             # The click is happening now, so check the old value
             if message_assignment.visit_count == 0:
-                print(True)
                 # This is the first time this specific message got clicked.
                 # Now also check: is it the first click across ALL messages for this lead?
                 already_clicked = MessageAssignment.objects.filter(

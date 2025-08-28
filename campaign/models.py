@@ -55,7 +55,7 @@ class Campaign(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} - {self.product.name}"
+        return f"{self.name}"
 
     def to_dict_for_ai(self):
         """Return a dictionary with campaign data formatted for AI personalization"""
@@ -388,22 +388,6 @@ class CampaignLead(models.Model):
     def is_won(self):
         """Check if this lead has been converted (won)"""
         return self.opportunity_status == 'won'
-
-
-
-
-
-
-class NewsletterSubscriber(models.Model):
-    lead = models.ForeignKey(Lead, null=True, blank=True, on_delete=models.SET_NULL)
-    joined_at = models.DateTimeField(auto_now_add=True)
-    unsubscribed = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"{self.lead.full_name} - {self.lead.email} - {self.joined_at}"
-
-
-
 
 
 
