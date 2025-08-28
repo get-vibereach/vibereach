@@ -19,5 +19,94 @@
     <div id="app">
       <!-- Your JavaScript will render the page content here -->
     </div>
+
+
+
+    
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const userDataStr = localStorage.getItem("vibereach_user_data");
+    if (!userDataStr) return; // not a user, do nothing
+
+    const userData = JSON.parse(userDataStr);
+    const isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }}; // Django template
+
+    // --- Update all CTA buttons with href="#early-access" ---
+    const earlyAccessBtns = document.querySelectorAll('a[href="#early-access"]');
+    if (userData.status === "user") {
+        earlyAccessBtns.forEach(btn => {
+            if (isAuthenticated) {
+                btn.href = "{% url 'overall_dashboard' %}";
+                btn.innerHTML = `<i class="fas fa-tachometer-alt mr-2"></i> Go to Dashboard`;
+            } else {
+                btn.href = "{% url 'login' %}";
+                btn.innerHTML = `<i class="fas fa-sign-in-alt mr-2"></i> Login`;
+            }
+        });
+    }
+
+    // --- Update "Book Demo" buttons ---
+    const bookDemoBtns = document.querySelectorAll('a[href="https://gataraai.zohobookings.com/#/ceo-call"]');
+    if (userData.status === "user") {
+        bookDemoBtns.forEach(btn => {
+            if (isAuthenticated) {
+                btn.href = "{% url 'campaign_view_list' %}";
+                btn.innerHTML = `<i class="fas fa-list mr-2"></i> View all Campaigns`;
+            } else {
+                btn.href = "mailto:maltio.ahmad@gatara.org";
+                btn.innerHTML = `<i class="fas fa-envelope mr-2"></i> Contact Support`;
+            }
+        });
+    }
+
+    // --- Show welcome toast ---
+    if (userData.status === "user") {
+        let countdown = 10; // seconds
+        const redirectTarget = isAuthenticated ? "Dashboard" : "Login page";
+
+        const container = document.createElement("div");
+        container.className = "toast toast-top toast-center z-50";
+
+        container.innerHTML = `
+          <div class="alert alert-success shadow-lg">
+            <div>
+              <span id="toast-message">
+                Welcome back, ${userData.first_name}! Redirecting to ${redirectTarget} in ${countdown} seconds...
+              </span>
+            </div>
+            <div class="flex-none">
+              <button id="toast-cancel-btn" class="btn btn-sm btn-outline">
+                 Cancel
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(container);
+
+        const messageEl = document.getElementById("toast-message");
+
+        const interval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                messageEl.textContent = `Welcome back, ${userData.first_name}! Redirecting to ${redirectTarget} in ${countdown} seconds...`;
+            } else {
+                clearInterval(interval);
+                if (isAuthenticated) {
+                    window.location.href = "{% url 'overall_dashboard' %}";
+                } else {
+                    window.location.href = "{% url 'login' %}";
+                }
+            }
+        }, 1000);
+
+        document.getElementById("toast-cancel-btn").addEventListener("click", () => {
+            clearInterval(interval);
+            container.remove();
+        });
+    }
+});
+</script>
+
+
   </body>
 </html>

@@ -11,7 +11,7 @@ from api.serializers import (
 )
 from .models import SubscribedCompany
 from django.contrib.auth.decorators import login_not_required
-
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 def custom_404_view(request, exception):
@@ -27,7 +27,10 @@ def home_view(request):
 @login_not_required
 def login_view(request):
     """Login page template"""
-    return render(request, 'auth/login.html')
+    next_url = request.GET.get('next')
+    context = {'next_url': next_url}
+    return render(request, 'auth/login.html', context)
+
 
 @login_not_required
 def login_submit(request):
@@ -41,12 +44,21 @@ def login_submit(request):
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    if user.first_name:
+
+                    next_url = request.POST.get('next') or request.GET.get('next')
+                    
+                    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                         messages.success(request, f'Welcome back, {user.first_name}!')
-                        return redirect('overall_dashboard')
+                        return redirect(next_url)
                     else:
-                        messages.success(request, 'Welcome back!')
-                        return redirect('account_settings')
+                        if user.first_name:
+                            messages.success(request, f'Welcome back, {user.first_name}!')
+                            return redirect('overall_dashboard')
+                        else:
+                            messages.success(request, f'Welcome back, {user.first_name}!')
+                            return redirect('account_settings')
+
+
                 else:
                     messages.error(request, 'Your account is disabled.')
             else:
@@ -54,7 +66,8 @@ def login_submit(request):
         else:
             messages.error(request, 'Please enter both username and password.')
 
-    return render(request, 'auth/login.html')
+    next_url_on_failure = request.POST.get('next') or request.GET.get('next')
+    return render(request, 'auth/login.html', {'next_url': next_url_on_failure})
 
 
 def logout_view(request):
