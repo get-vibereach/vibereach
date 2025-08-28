@@ -467,7 +467,7 @@ def messages_view(request):
     most_opportunity = max(message_stats, key=lambda x: x["opportunities"], default=None)
 
     context = {
-        'messages': messages,
+        'messages_query': messages,
         'products': products,
         'most_opened': most_opened["message"] if most_opened else None,
         'most_clicked': most_clicked["message"] if most_clicked else None,
@@ -485,7 +485,7 @@ def messages_edit_view(request, pk):
     messages, products = get_messages_and_products(request)
 
     context = {
-        'messages': messages,
+        'messages_query': messages,
         'message_id': pk,
         'products': products
     }
@@ -498,7 +498,7 @@ def messages_add_view(request):
     messages, products = get_messages_and_products(request)
 
     context = {
-        'messages': messages,
+        'messages_query': messages,
         'products': products
     }
 
