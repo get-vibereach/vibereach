@@ -76,34 +76,40 @@ class AnalyticsService:
     def handle_message_assignment_visited(message_assignment):
         """
         Handle analytics when a link in a message assignment is visited.
-        Uses incremental updates for performance.
+        This should only increment the campaign's clicked_count ONCE per lead.
         """
         try:
+            # Step 0: Basic validation
             campaign = message_assignment.campaign
             campaign_lead = message_assignment.campaign_lead
-            
             if not campaign or not campaign_lead:
                 return
+
+            # Step 1: Was this the first click ON THIS SPECIFIC MESSAGE?
+            # This is the most crucial check. If the count is > 1, it's a re-click
+            # on the same link, and we can stop immediately.
+            if message_assignment.visit_count != 1:
+                # Not the first click on this link, so it cannot be the lead's first-ever click.
+                return
             
-            # Get or create campaign stats
-            stats, created = CampaignStats.objects.get_or_create(campaign=campaign)
-            
-            # Check if this is the lead's first click in this campaign by seeing
-            # if any *other* message assignments for this lead have been visited.
-            lead_first_click = not MessageAssignment.objects.filter(
+            logger.info(f"🔗 First click on a link MessageAssignment {message_assignment.id}")
+
+            # Step 2: OK, it's the first click on this link. Now, check if the lead
+            # has clicked ANY OTHER links in this campaign.
+            # We look for other message assignments for this lead that have been clicked.
+            has_clicked_other_links = MessageAssignment.objects.filter(
                 campaign_lead=campaign_lead,
                 visit_count__gt=0
             ).exclude(id=message_assignment.id).exists()
             
-            # This logic assumes this handler is called right after the visit_count is incremented to 1.
-            # If the visit_count is exactly 1 and no other messages have clicks, it's the first click.
-            if message_assignment.visit_count == 1 and lead_first_click:
-                # This lead just clicked their first link in the campaign
+            # If they haven't clicked any other links, THEN this is their first click.
+            if not has_clicked_other_links:
+                # This is the one we want to count!
+                stats, _ = CampaignStats.objects.get_or_create(campaign=campaign)
                 stats.clicked_count = F('clicked_count') + 1
                 stats.save(update_fields=['clicked_count'])
-                
-            logger.info(f"Analytics updated for message assignment visited: {message_assignment.id}")
-            
+                logger.info(f"Analytics stats updated for lead's first click: {message_assignment.id}")
+
         except Exception as e:
             logger.error(f"Error updating analytics for message assignment visited: {str(e)}")
     
