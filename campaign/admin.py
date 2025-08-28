@@ -11,7 +11,7 @@ from urllib.parse import unquote
 
 from campaign.email_sender import send_campaign_email
 from .models import (
-    LeadList, Product, Campaign, Lead, NewsletterSubscriber,
+    LeadList, Product, Campaign, Lead,
     CampaignLead, Message, MessageAssignment, CampaignStats, Schedule, CampaignOptions, CampaignDailyStats
 )
  
@@ -150,19 +150,6 @@ class LeadAdmin(ImportExportModelAdmin):
         extra_context['campaigns'] = Campaign.objects.all()
         return super().changelist_view(request, extra_context=extra_context)
 
-@admin.register(NewsletterSubscriber)
-class NewsletterSubscriberAdmin(admin.ModelAdmin):
-    list_display = ('lead_name', 'lead_email', 'joined_at', 'unsubscribed')
-    list_filter = ('unsubscribed', 'joined_at')
-    search_fields = ('lead__full_name', 'lead__email')
-    
-    def lead_name(self, obj):
-        return obj.lead.full_name if obj.lead else "-"
-    lead_name.short_description = 'Name'
-    
-    def lead_email(self, obj):
-        return obj.lead.email if obj.lead else "-"
-    lead_email.short_description = 'Email'
 
 class CampaignLeadForm(forms.ModelForm):
     class Meta:
