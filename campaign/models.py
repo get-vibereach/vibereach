@@ -548,6 +548,7 @@ class MessageAssignment(models.Model):
         self.visit_count = models.F('visit_count') + 1 # Use F() expression to avoid race conditions
         self.visited_at = timezone.now()
         self.save(update_fields=['visit_count', 'visited_at'])
+        self.refresh_from_db(fields=['visit_count'])
 
     def get_ai_personalization_data(self):
         """

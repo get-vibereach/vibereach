@@ -178,14 +178,15 @@ class CustomClickTrackingView(ClickTrackingView):
                 if not message_assignment.link:
                     message_assignment.link = clicked_url
                     message_assignment.save(update_fields=['link'])
-                # Increment the visit count on the message assignment
-                message_assignment.track_visit()
                 
                 logger.info(f"🔗 Link clicked for MessageAssignment {message_assignment_id}: {clicked_url}")
                 
                 # Use the centralized analytics service to handle the logic of updating stats
                 from .services import AnalyticsService
                 AnalyticsService.handle_message_assignment_visited(message_assignment)
+
+                # Increment the visit count on the message assignment
+                message_assignment.track_visit()
                 
         except Exception as e:
             logger.error(f"Error handling click tracking event: {str(e)}")
