@@ -892,6 +892,47 @@ def calculate_all_campaigns_daily_stats(ctx: inngest.Context):
 
 
 @inngest_client.create_function(
+    fn_id="calculate_all_campaigns_overall_stats",
+    trigger=inngest.TriggerCron(cron="0 1 * * *"),  # Daily at 1 AM UTC
+)
+def calculate_all_campaigns_overall_stats(ctx: inngest.Context):
+    """
+    Calculate overall stats for all active campaigns.
+    Runs daily at 1 AM UTC (after email limit reset).
+    """
+    try:
+        logger.info("📊 Starting overall stats calculation for all active campaigns")
+
+        from .models import Campaign, CampaignStats
+
+        # Get all active campaigns
+        campaigns = Campaign.objects.filter(status='active')
+        count = campaigns.count()
+
+        logger.info(f"📊 Found {count} active campaigns for overall stats calculation")
+
+        # Perform full recalculation to ensure accuracy
+        AnalyticsService.batch_update_campaigns(campaigns)
+            
+        logger.info(f"✅ Scheduled overall stats calculation for {count} campaigns")
+
+        return {
+            "status": "success",
+            "message": f"Scheduled overall stats calculation for {count} campaigns",
+            "campaigns_count": count
+        }
+
+    except Exception as e:
+        logger.error(f"💥 Error scheduling overall stats calculation: {str(e)}")
+        import traceback
+        logger.error(f"💥 Full traceback:\n{traceback.format_exc()}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+@inngest_client.create_function(
     fn_id="create_campaign_stats",
     trigger=inngest.TriggerEvent(event="campaigns/create_stats"),
 )
