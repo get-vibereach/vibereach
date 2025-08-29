@@ -30,14 +30,13 @@ handler404 = 'clients.views.custom_404_view'
 
 urlpatterns = [
     path('', home_view, name='home'),
-    re_path(r'^admin/', include('admin_honeypot.urls')),  # Fake admin trap
+    re_path(r'^admin/', include('admin_honeypot.urls')),
     path('fdudminramo/', admin.site.urls),
     path('campaign/', include('campaign.urls')),
     path('api/', include('api.urls')),
     path('accounts/', include('clients.urls')),
     path('support/', include('support.urls')),
     path('feedback/', include('feedback.urls')),
-    # path('posts/', include('posts.urls')),
 
     path('is_healthy/', health_check, name='health_check'),
 
