@@ -23,10 +23,65 @@ from .resources import LeadResource
 # Configure logger
 logger = logging.getLogger(__name__)
 
+@admin.register(CampaignOptions)
+class CampaignOptionsAdmin(admin.ModelAdmin):
+    list_display = ('campaign', 'open_tracking_enabled', 'link_tracking_enabled', 'daily_limit', 'stop_on_reply')
+    list_filter = ('open_tracking_enabled', 'link_tracking_enabled', 'stop_on_reply')
 
-admin.site.register(CampaignOptions)
-admin.site.register(CampaignStats)
-admin.site.register(CampaignDailyStats)
+
+# Admin configurations
+@admin.register(CampaignStats)
+class CampaignStatsAdmin(admin.ModelAdmin):
+    list_display = (
+        'campaign', 'total_leads', 'sequence_started_count',
+        'opened_count', 'open_rate_percentage', 'clicked_count',
+        'click_rate_percentage', 'replied_count', 'reply_rate_percentage',
+        'opportunities_count', 'opportunity_value', 'conversions_count',
+        'conversion_total_value', 'best_message', 'updated_at'
+    )
+    list_filter = ('campaign', 'updated_at')
+    search_fields = ('campaign__name',)
+    # Adding a button to manually trigger update_from_campaign
+    actions = ['update_selected_campaign_stats']
+
+    def update_selected_campaign_stats(self, request, queryset):
+        for stats in queryset:
+            stats.update_from_campaign()
+        self.message_user(request, f"Successfully updated stats for {queryset.count()} campaign(s).")
+    update_selected_campaign_stats.short_description = "Update selected Campaign Stats"
+
+
+
+@admin.register(CampaignDailyStats)
+class CampaignDailyStatsAdmin(admin.ModelAdmin):
+    list_display = (
+        'campaign', 'date', 'emails_sent_today', 'opens_today',
+        'clicks_today', 'replies_today', 'opportunities_today',
+        'conversions_today', 'opportunities_value_today',
+        'conversions_value_today', 'total_emails_sent', 'total_opens',
+        'total_clicks', 'total_replies', 'total_opportunities',
+        'total_conversions', 'total_opportunities_value',
+        'total_conversions_value'
+    )
+    list_filter = ('campaign', 'date')
+    search_fields = ('campaign__name',)
+    # Adding a button to manually trigger calculate_daily_stats for selected campaigns
+    actions = ['calculate_daily_stats_for_selected']
+
+    def calculate_daily_stats_for_selected(self, request, queryset):
+        # We need to iterate over unique campaigns from the selected daily stats
+        # or, better, provide a way to select campaigns and then calculate for them.
+        # For simplicity, if we select DailyStats objects, we re-calculate for their campaign and date.
+        
+        # A more robust action might target Campaign objects directly for daily stats generation.
+        # For this action, we'll re-run for the existing daily stats entries.
+        updated_count = 0
+        for daily_stats_entry in queryset:
+            CampaignDailyStats.calculate_daily_stats(daily_stats_entry.campaign, daily_stats_entry.date)
+            updated_count += 1
+        self.message_user(request, f"Successfully recalculated daily stats for {updated_count} entries.")
+    calculate_daily_stats_for_selected.short_description = "Recalculate daily stats for selected entries"
+
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
