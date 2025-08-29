@@ -42,7 +42,7 @@ class CustomUserAdmin(UserAdmin):
 
     # Display fields in the list view
     list_display = ('username', 'email', 'first_name', 'last_name', 'subscribed_company', 'is_staff', 'is_active', 'onboarding_completed')
-    search_fields = ('email', 'username', 'first_name', 'last_name')
+    search_fields = ('email', 'username', 'first_name', 'last_name', 'subscribed_company')
     list_filter = ('subscribed_company', 'is_staff', 'is_active', 'is_superuser', 'onboarding_completed')
 
     # Fields to display when editing an existing user
@@ -74,14 +74,14 @@ admin.site.register(Subscription)
 admin.site.register(BillingHistory)
 
 
-# Custom admin classes
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'campaign_count', 'landing_page_link')
-    search_fields = ('name', 'description')
+    list_display = ('subscribed_company', 'name', 'campaign_count', 'landing_page_link') 
+    search_fields = ('name', 'description', 'subscribed_company__name')
+    list_filter = ('subscribed_company',) 
     
     def campaign_count(self, obj):
-        return obj.campaign_set.count()
+        return obj.product_campaigns.count()
     campaign_count.short_description = 'Campaigns'
     
     def landing_page_link(self, obj):
@@ -94,8 +94,8 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(EmailAccount)
 class EmailAccountAdmin(admin.ModelAdmin):
-    list_display = ('id', 'email', 'connection_type', 'status', 'emails_sent', 'daily_limit')
-    search_fields = ('email',)
-    list_filter = ('connection_type', 'status',)
+    list_display = ('subscribed_company', 'id', 'email', 'connection_type', 'status', 'emails_sent', 'daily_limit')
+    search_fields = ('email', 'subscribed_company')
+    list_filter = ('subscribed_company', 'connection_type', 'status',)
     
     
