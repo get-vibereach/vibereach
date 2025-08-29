@@ -249,11 +249,3 @@ class DailyStatsService:
         """
         return CampaignDailyStats.calculate_daily_stats(campaign, target_date)
     
-    @staticmethod
-    def schedule_daily_stats_calculation():
-        """
-        Schedule daily stats calculation for all active campaigns.
-        Call this from Inngest or Celery Beat.
-        """
-        from .tasks import calculate_all_campaigns_daily_stats_task
-        calculate_all_campaigns_daily_stats_task.delay()
