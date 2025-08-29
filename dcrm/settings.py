@@ -34,7 +34,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_celery_results',
     'rest_framework',
     'import_export',
     'django_htmx',
@@ -281,16 +280,6 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 
-# Celery settings
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
-CELERY_BROKER_URL = env('CELERY_BROKER_URL')
-CELERY_ACCEPT_CONTENT = env.list('CELERY_ACCEPT_CONTENT')
-CELERY_TASK_SERIALIZER = env('CELERY_TASK_SERIALIZER')
-CELERY_RESULT_SERIALIZER = env('CELERY_RESULT_SERIALIZER')
-CELERY_TIMEZONE = env('CELERY_TIMEZONE')
-CELERY_TASK_TRACK_STARTED = env.bool('CELERY_TASK_TRACK_STARTED')
-CELERY_TASK_TIME_LIMIT = env.int('CELERY_TASK_TIME_LIMIT')
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = env.bool('CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP')
 
 
 # Telegram Bot Settings
