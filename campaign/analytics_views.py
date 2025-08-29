@@ -8,9 +8,10 @@ from django.db.models import Sum, Count, Q
 from campaign.helpers import get_campaigns_and_products
 from .models import Campaign, CampaignDailyStats, CampaignStats
 import json
-
+from django.views.decorators.cache import cache_page
 
 @require_http_methods(["GET"])
+@cache_page(60 * 15)
 def campaign_analytics_data(request, campaign_id):
     """
     API endpoint to get analytics data for a campaign dashboard.
@@ -179,82 +180,10 @@ def campaign_analytics_data(request, campaign_id):
     })
 
 
-@require_http_methods(["POST"])
-def refresh_campaign_stats(request, campaign_id):
-    """
-    API endpoint to trigger a refresh of campaign stats.
-    """
-    campaign = get_object_or_404(Campaign, id=campaign_id)
-    
-    try:
-        # Import here to avoid circular imports
-        from .tasks import calculate_daily_stats_task
-        
-        # Schedule calculation for today
-        task_result = calculate_daily_stats_task.delay(campaign_id)
-        
-        # Also update the main campaign stats
-        from .models import CampaignStats
-        stats, _ = CampaignStats.objects.get_or_create(campaign=campaign)
-        stats.update_from_campaign()
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Stats refresh scheduled',
-            'task_id': task_result.id
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error refreshing stats: {str(e)}'
-        }, status=500)
-
-
-@require_http_methods(["POST"])
-def backfill_campaign_analytics(request, campaign_id):
-    """
-    API endpoint to backfill analytics data for a campaign.
-    Useful for populating historical data.
-    """
-    campaign = get_object_or_404(Campaign, id=campaign_id)
-    
-    try:
-        data = json.loads(request.body)
-        start_date = data.get('start_date')  # YYYY-MM-DD format
-        end_date = data.get('end_date')      # YYYY-MM-DD format
-        
-        if not start_date or not end_date:
-            return JsonResponse({
-                'success': False,
-                'message': 'start_date and end_date are required'
-            }, status=400)
-        
-        # Import here to avoid circular imports
-        from .tasks import backfill_daily_stats_task
-        
-        # Schedule backfill task
-        task_result = backfill_daily_stats_task.delay(campaign_id, start_date, end_date)
-        
-        return JsonResponse({
-            'success': True,
-            'message': f'Backfill scheduled from {start_date} to {end_date}',
-            'task_id': task_result.id
-        })
-        
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid JSON in request body'
-        }, status=400)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error scheduling backfill: {str(e)}'
-        }, status=500)
 
 
 @require_http_methods(["GET"])
+@cache_page(60 * 15)
 def overall_analytics_data(request):
     """
     API endpoint to get overall analytics data across all campaigns.

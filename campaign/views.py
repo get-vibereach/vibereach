@@ -16,6 +16,7 @@ import json
 from campaign.helpers import get_campaign_status, get_campaigns_and_products, get_company_email_accounts, get_company_products, get_lead_lists_or_both, get_messages_and_products, get_subscribed_company, is_allowed_to_be_launched
 from .models import Campaign, CampaignLead, CampaignOptions, CampaignStats, LeadList, Message, MessageAssignment, Schedule
 import logging
+from django.views.decorators.cache import cache_page
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def show_all_leads_view(request):
     return render(request, "app/leads/all-leads-view.html", context)
 
 
-#@login_required
+
 def add_leads(request, pk):
     return render(request, "app/leads/add-leads.html", context={'lead_list_id': pk})
 
@@ -105,7 +106,7 @@ def campaign_dashboard(request, pk):
     return render(request, "app/campaign/dashboard.html", context)
 
 
-
+@cache_page(60 * 15)
 def campaign_msgs_performance(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
     campaign_status= get_campaign_status(request, pk)
@@ -316,7 +317,7 @@ def campaign_options(request, pk):
 
 
 
-# New navigation views
+
 def products_view(request):
     """Products management page"""
 
@@ -440,12 +441,12 @@ def messages_add_view(request):
 
 
 
-#@login_required
+
 def overall_dashboard_view(request):
     """Overall dashboard page"""
     return render(request, "app/overall-dashboard.html")
 
-#@login_required
+
 def account_settings_view(request):
     """Account settings page"""
     return render(request, "app/account/account-settings.html")

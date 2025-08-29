@@ -23,14 +23,79 @@ from .resources import LeadResource
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# --- Helper method for getting subscribed_company from related objects ---
+# This can be used in admin classes that don't have a direct 'subscribed_company' field
+# but can access it via a ForeignKey.
+def get_subscribed_company_display(obj):
+    if hasattr(obj, 'subscribed_company'):
+        return obj.subscribed_company
+    elif hasattr(obj, 'campaign') and obj.campaign:
+        return obj.campaign.subscribed_company
+    elif hasattr(obj, 'product') and obj.product:
+        return obj.product.subscribed_company
+    elif hasattr(obj, 'campaign_lead') and obj.campaign_lead and obj.campaign_lead.campaign:
+        return obj.campaign_lead.campaign.subscribed_company
+    return None
+get_subscribed_company_display.short_description = 'Subscribed Company'
+get_subscribed_company_display.admin_order_field = 'subscribed_company__name' # For direct fields
 
-admin.site.register(CampaignOptions)
-admin.site.register(CampaignStats)
-admin.site.register(CampaignDailyStats)
+# Admin configurations
+@admin.register(CampaignOptions)
+class CampaignOptionsAdmin(admin.ModelAdmin):
+    list_display = (get_subscribed_company_display, 'campaign', 'open_tracking_enabled', 'link_tracking_enabled', 'daily_limit', 'stop_on_reply')
+    list_filter = ('campaign__subscribed_company', 'open_tracking_enabled', 'link_tracking_enabled', 'stop_on_reply')
+    # Add subscribed_company to search fields if desired, e.g., 'campaign__subscribed_company__name'
+
+
+@admin.register(CampaignStats)
+class CampaignStatsAdmin(admin.ModelAdmin):
+    list_display = (
+        get_subscribed_company_display, 'campaign', 'total_leads', 'sequence_started_count',
+        'opened_count', 'open_rate_percentage', 'clicked_count',
+        'click_rate_percentage', 'replied_count', 'reply_rate_percentage',
+        'opportunities_count', 'opportunity_value', 'conversions_count',
+        'conversion_total_value', 'best_message', 'updated_at'
+    )
+    list_filter = ('campaign__subscribed_company', 'campaign', 'updated_at')
+    search_fields = ('campaign__name', 'campaign__subscribed_company__name')
+    actions = ['update_selected_campaign_stats']
+
+    def update_selected_campaign_stats(self, request, queryset):
+        for stats in queryset:
+            stats.update_from_campaign()
+        self.message_user(request, f"Successfully updated stats for {queryset.count()} campaign(s).")
+    update_selected_campaign_stats.short_description = "Update selected Campaign Stats"
+
+
+@admin.register(CampaignDailyStats)
+class CampaignDailyStatsAdmin(admin.ModelAdmin):
+    list_display = (
+        get_subscribed_company_display, 'campaign', 'date', 'emails_sent_today', 'opens_today',
+        'clicks_today', 'replies_today', 'opportunities_today',
+        'conversions_today', 'opportunities_value_today',
+        'conversions_value_today', 'total_emails_sent', 'total_opens',
+        'total_clicks', 'total_replies', 'total_opportunities',
+        'total_conversions', 'total_opportunities_value',
+        'total_conversions_value'
+    )
+    list_filter = ('campaign__subscribed_company', 'campaign', 'date')
+    search_fields = ('campaign__name', 'campaign__subscribed_company__name')
+    actions = ['calculate_daily_stats_for_selected']
+
+    def calculate_daily_stats_for_selected(self, request, queryset):
+        updated_count = 0
+        for daily_stats_entry in queryset:
+            CampaignDailyStats.calculate_daily_stats(daily_stats_entry.campaign, daily_stats_entry.date)
+            updated_count += 1
+        self.message_user(request, f"Successfully recalculated daily stats for {updated_count} entries.")
+    calculate_daily_stats_for_selected.short_description = "Recalculate daily stats for selected entries"
+
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'campaign', 'start_date', 'timing_from', 'timing_to', 'time_zone', 'days')
+    list_display = ('subscribed_company', 'name', 'campaign', 'start_date', 'timing_from', 'timing_to', 'time_zone', 'days')
+    list_filter = ('subscribed_company', 'campaign') # Added subscribed_company to filter
+    search_fields = ('name', 'subscribed_company__name', 'campaign__name') # Added subscribed_company to search
 
 
 # Inline models for related objects
@@ -50,20 +115,24 @@ class CampaignFilter(SimpleListFilter):
     parameter_name = 'campaign'
 
     def lookups(self, request, model_admin):
-        campaigns = Campaign.objects.all()
+        # Filter campaigns by the current user's subscribed company if multi-tenancy is in place
+        if request.user.is_authenticated and hasattr(request.user, 'subscribed_company'):
+            campaigns = Campaign.objects.filter(subscribed_company=request.user.subscribed_company)
+        else:
+            campaigns = Campaign.objects.all()
         return [(c.id, c.name) for c in campaigns]
 
     def queryset(self, request, queryset):
         if self.value():
-            return queryset
+            return queryset.filter(campaign__id=self.value())
         return queryset
 
 
 @admin.register(Campaign)
 class CampaignAdmin(admin.ModelAdmin):
-    list_display = ('name', 'product', 'start_date', 'end_date', 'is_active', 'lead_count')
-    list_filter = ('is_active', 'product', 'start_date')
-    search_fields = ('name', 'short_name', 'product__name')
+    list_display = ('subscribed_company', 'name', 'product', 'start_date', 'end_date', 'is_active', 'lead_count')
+    list_filter = ('subscribed_company', 'is_active', 'product', 'start_date') # Added subscribed_company to filter
+    search_fields = ('name', 'short_name', 'product__name', 'subscribed_company__name') # Added subscribed_company to search
     inlines = [CampaignLeadInline]
     
     def lead_count(self, obj):
@@ -72,7 +141,9 @@ class CampaignAdmin(admin.ModelAdmin):
     
 @admin.register(LeadList)
 class LeadListAdmin(admin.ModelAdmin):
-    list_display = ('title', 'display_tags', 'display_campaigns')
+    list_display = ('subscribed_company', 'title', 'display_tags', 'display_campaigns')
+    list_filter = ('subscribed_company',) # Added subscribed_company to filter
+    search_fields = ('title', 'tags', 'subscribed_company__name') # Added subscribed_company to search
     
     def display_tags(self, obj):
         return obj.tags if obj.tags else "-"
@@ -85,9 +156,9 @@ class LeadListAdmin(admin.ModelAdmin):
 @admin.register(Lead)
 class LeadAdmin(ImportExportModelAdmin):
     resource_class = LeadResource
-    list_display = ('full_name', 'email', 'company_name', 'lead_type', 'source', 'campaign_count')
-    list_filter = ('lead_type', 'source', 'created_at')
-    search_fields = ('full_name', 'email', 'company_name')
+    list_display = ('subscribed_company', 'full_name', 'email', 'company_name', 'lead_type', 'source', 'campaign_count')
+    list_filter = ('subscribed_company', 'lead_type', 'source', 'created_at') # Added subscribed_company to filter
+    search_fields = ('full_name', 'email', 'company_name', 'subscribed_company__name') # Added subscribed_company to search
     fieldsets = (
         ('Owned By', {
             'fields': ('lead_list', 'subscribed_company')
@@ -147,7 +218,11 @@ class LeadAdmin(ImportExportModelAdmin):
     
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
-        extra_context['campaigns'] = Campaign.objects.all()
+        # Filter campaigns by the current user's subscribed company
+        if request.user.is_authenticated and hasattr(request.user, 'subscribed_company'):
+            extra_context['campaigns'] = Campaign.objects.filter(subscribed_company=request.user.subscribed_company)
+        else:
+            extra_context['campaigns'] = Campaign.objects.all()
         return super().changelist_view(request, extra_context=extra_context)
 
 
@@ -179,9 +254,9 @@ class CampaignLeadForm(forms.ModelForm):
 @admin.register(CampaignLead)
 class CampaignLeadAdmin(admin.ModelAdmin):
     form = CampaignLeadForm
-    list_display = ('lead', 'lead__lead_list', 'campaign', 'is_converted', 'total_clicks', 'converted_at', 'created_at')
-    list_filter = ('is_converted', 'campaign', 'created_at')
-    search_fields = ('lead__full_name', 'lead__email', 'campaign__name')
+    list_display = (get_subscribed_company_display, 'lead', 'lead__lead_list', 'campaign', 'is_converted', 'total_clicks', 'converted_at', 'created_at')
+    list_filter = ('campaign__subscribed_company', 'is_converted', 'campaign', 'created_at') # Added subscribed_company to filter
+    search_fields = ('lead__full_name', 'lead__email', 'campaign__name', 'campaign__subscribed_company__name') # Added subscribed_company to search
     inlines = [MessageAssignmentInline]
     
     def total_clicks(self, obj):
@@ -272,8 +347,9 @@ class CampaignLeadAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ('subject', 'product', 'cta', 'message_preview')
-    search_fields = ('subject', 'content', 'cta')
+    list_display = (get_subscribed_company_display, 'subject', 'product', 'cta', 'message_preview')
+    search_fields = ('subject', 'content', 'cta', 'product__name', 'product__subscribed_company__name') # Added subscribed_company to search
+    list_filter = ('product__subscribed_company', 'product') # Added subscribed_company to filter
     
     def message_preview(self, obj):
         if len(obj.content) > 50:
@@ -318,9 +394,9 @@ class MessageAssignmentAdminForm(forms.ModelForm):
 @admin.register(MessageAssignment)
 class MessageAssignmentAdmin(admin.ModelAdmin):
     form = MessageAssignmentAdminForm
-    list_display = ('id', 'campaign_lead', 'message', 'link_details', 'delayed_by_days', 'sent', 'opened', 'responded', 'sent_at')
-    list_filter = ('campaign', 'responded', 'delayed_by_days', 'sent_at', 'sent')
-    search_fields = ('campaign_lead__lead__full_name', 'message__subject')
+    list_display = (get_subscribed_company_display, 'id', 'campaign_lead', 'message', 'link_details', 'delayed_by_days', 'sent', 'opened', 'responded', 'sent_at')
+    list_filter = ('campaign__subscribed_company', 'campaign', 'responded', 'delayed_by_days', 'sent_at', 'sent') # Added subscribed_company to filter
+    search_fields = ('campaign_lead__lead__full_name', 'message__subject', 'campaign__subscribed_company__name') # Added subscribed_company to search
     
     add_form_template = 'admin/campaign/messageassignment/add_form.html'
     change_form_template = 'admin/campaign/messageassignment/change_form.html'
@@ -544,10 +620,6 @@ class MessageAssignmentAdmin(admin.ModelAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         extra_context['show_personalize_button'] = True
-        
-        # All of the dynamic JS for dropdowns is no longer needed in change_view,
-        # as get_form handles the initial filtering correctly.
-        # Keeping add_view's JS as it's useful for a blank form.
         
         return super().change_view(request, object_id, form_url, extra_context)
 
