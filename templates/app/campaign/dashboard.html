@@ -366,7 +366,8 @@
                     // Reload the chart data after a short delay
                     setTimeout(() => {
                         loadAnalyticsData(currentTimeFilter);
-                    }, 2000);
+                    }, 1000);
+                    ModalSystem.toast(result.message, 'success');
                 } else {
                     console.error('Error refreshing stats:', result.message);
                 }

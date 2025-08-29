@@ -32,8 +32,6 @@ urlpatterns = [
 
     # Analytics API endpoints
     path('api/analytics/<int:campaign_id>/', analytics_views.campaign_analytics_data, name='campaign_analytics_data'),
-    path('api/refresh-stats/<int:campaign_id>/', analytics_views.refresh_campaign_stats, name='refresh_campaign_stats'),
-    path('api/backfill-analytics/<int:campaign_id>/', analytics_views.backfill_campaign_analytics, name='backfill_campaign_analytics'),
     path('api/overall-analytics/', analytics_views.overall_analytics_data, name='overall_analytics_data'),
 
     # Tracking test endpoint

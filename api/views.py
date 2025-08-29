@@ -17,9 +17,11 @@ from rest_framework.decorators import api_view
 from django.db import transaction
 import uuid
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.decorators import method_decorator # for class based view: @method_decorator(cache_page(60*15), name='get')
 from django.views.decorators.cache import cache_page # for function based view: @cache_page(60*15) but it under the method example @api_view(['GET'])
-
+from django.core.cache import cache
+CACHE_TIMEOUT_SECONDS = 60 * 15
 
 # testing inggest
 import inngest
@@ -798,7 +800,18 @@ def refresh_campaign_daily_stats(request):
         pk= request.data.get('campaign_id')
         campaign = get_object_or_404(Campaign, pk=pk)
 
-        from datetime import datetime
+        target_date = timezone.now().date()
+        # Cache key for this campaign/day
+        cache_key = f"refresh_campaign_daily_stats_{campaign.id}_{target_date}"
+
+        if not cache.add(cache_key, True, CACHE_TIMEOUT_SECONDS):
+            return Response({
+                'success': True,
+                'message': f'Stats calculation task is already running or was recently initiated for "{campaign.name}". Please check back later in 30 minutes.',
+                'campaign_id': campaign.id,
+                'campaign_name': campaign.name,
+                'status_code': 'ALREADY_TRIGGERED'
+            }, status=status.HTTP_200_OK)
 
         try:
             # Create/update campaign stats first
