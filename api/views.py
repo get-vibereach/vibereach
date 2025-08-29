@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 from django.http import JsonResponse
@@ -16,6 +17,8 @@ from rest_framework.decorators import api_view
 from django.db import transaction
 import uuid
 from django.db.models import Q
+from django.utils.decorators import method_decorator # for class based view: @method_decorator(cache_page(60*15), name='get')
+from django.views.decorators.cache import cache_page # for function based view: @cache_page(60*15) but it under the method example @api_view(['GET'])
 
 
 # testing inggest
@@ -23,6 +26,7 @@ import inngest
 from scheduler.client import inngest_client
 
 logger = logging.getLogger(__name__)
+
 
 
 class ProductListCreateView(generics.ListCreateAPIView):
@@ -642,6 +646,7 @@ def launch_campaign(request, pk):
 
 
 @api_view(['GET'])
+@cache_page(60*15)
 def campaign_launch_status(request, pk):
     """
     Get the launch status and statistics for a campaign
