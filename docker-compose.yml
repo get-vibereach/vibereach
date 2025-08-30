@@ -1,4 +1,3 @@
-
 services:
   web_blue:
     build: .
@@ -27,7 +26,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
-
+      - redis-network
 
   web_green:
     build: .
@@ -56,8 +55,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
-
-
+      - redis-network
 
   db:
     image: postgres:15
@@ -76,10 +74,26 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - redis-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
 volumes:
   static_volume:
   pgdata:
+  redis_data:
 
 networks:
   app-network:
+    driver: bridge
+  redis-network:
     driver: bridge
