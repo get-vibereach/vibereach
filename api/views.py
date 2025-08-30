@@ -598,8 +598,8 @@ def launch_campaign(request, pk):
             CampaignStats.objects.get_or_create(campaign=campaign)
 
             # Create/get campaign scheduler first
-            from campaign.models import CampaignScheduler
-            CampaignScheduler.objects.get_or_create(
+            from campaign.models import Schedule
+            Schedule.objects.get_or_create(
                 campaign=campaign,
                 subscribed_company=request.user.subscribed_company,
                 )
