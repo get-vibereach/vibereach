@@ -8,7 +8,7 @@
         <!-- Top Nav & Actions -->
         <div class="flex items-center justify-between">
             <div role="tablist" class="tabs">
-                {% if campaign_status is 'active' or 'completed' %}
+                {% if campaign_status != 'draft' %}
                 <a role="tab"
                    href="{% url 'campaign_dashboard' campaign_id %}"
                    class="tab h-auto pb-2 px-1 text-base mx-4 {% if current_tab == 'analytics' %}text-primary tab-active-underline border-primary{% else %}text-gray-500{% endif %}">
