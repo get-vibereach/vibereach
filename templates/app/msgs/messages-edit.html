@@ -1757,6 +1757,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         title: "Add a P.P.S. (Optional)",
                         description: "Use this for an extra call to action or a final piece of value.",
                         position: "left"
+                    },
+                    onHighlightStarted: (element) => {
+                        // Find the scrollable parent container
+                        const formContainer = document.getElementById('message-form-container');
+                        if (formContainer) {
+                            // Get the position of the signature element relative to the container
+                            const elementTop = element.offsetTop;
+                            // Scroll the container so the element is positioned 100px from the top
+                            // This provides enough space to clear the bottom toolbar.
+                            formContainer.scrollTo({ top: elementTop - 100, behavior: 'smooth' });
+                        }
                     }
                 },
                 {

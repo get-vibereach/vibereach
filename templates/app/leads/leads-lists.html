@@ -218,6 +218,7 @@ function submitLeadsListForm(companyId) {
         // Redirect to the new list view
         
         {% if not request.user.onboarding_completed %}
+        const step = localStorage.getItem("onboardingStep");
         if (step === "created_a_product") {
             localStorage.setItem("onboardingStep", "created_a_lead_list");
         };    
