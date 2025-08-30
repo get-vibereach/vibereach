@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib import messages
 from django.urls import reverse
 from rest_framework import status, generics, permissions
@@ -10,12 +10,33 @@ from api.serializers import (
     LoginSerializer, CompanyRegistrationSerializer, UserRegistrationSerializer, UserUpdateSerializer, TrialRegistrationSerializer
 )
 from .models import LoginToken, SubscribedCompany, CustomUser, SignupToken, Plan, Subscription
-from django.contrib.auth.decorators import login_not_required
+from django.contrib.auth.decorators import login_required, login_not_required
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import get_user_model
 User = get_user_model()
+
+
+@login_required
+def reset_password_view(request):
+    if request.method == 'POST':
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if new_password and new_password == confirm_password:
+            # Add password validation logic here if needed
+            request.user.set_password(new_password)
+            request.user.save()
+            # Update the session hash to prevent the user from being logged out
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'Your password has been set successfully.')
+            return redirect('overall_dashboard')
+        else:
+            messages.error(request, 'Passwords do not match.')
+            return redirect('reset_password')
+    else:
+        return render(request, 'auth/reset_password.html')
 
 
 @login_not_required
@@ -335,7 +356,7 @@ def login_with_token_view(request, token):
         login_token.is_used = True
         login_token.save()
 
-        return redirect('overall_dashboard')
+        return redirect('reset_password')
 
     except LoginToken.DoesNotExist:
         return render(request, 'auth/404.html', {'message': 'Invalid login link.'}, status=404)
