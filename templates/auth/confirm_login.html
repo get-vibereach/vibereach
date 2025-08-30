@@ -15,7 +15,7 @@
         <div class="card w-full max-w-sm shrink-0 shadow-lg bg-base-100">
             <form class="card-body" method="post" action="">
                 {% csrf_token %}
-                <h2 class="card-title text-2xl font-bold justify-center mb-4">You're one click away!</h2>
+                <h2 class="card-title text-2xl font-bold justify-center mb-4">You're one click away <span class="text-success"> {{ request.user.first_name }}!</span>!</h2>
                 <p class="text-center mb-6">Click the button below to securely log in to your account.</p>
                 <div class="form-control mt-6">
                     <button type="submit" class="btn btn-primary w-full">
