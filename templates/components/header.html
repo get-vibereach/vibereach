@@ -4,6 +4,22 @@
         <span class="badge badge-primary badge-outline font-semibold text-xs">Beta</span>
     </div>
 
+    {% if show_renewal_notice %}
+    <div class="navbar-center hidden lg:flex">
+        <div class="text-warning text-center p-2">
+            Friendly Reminder: Your {{ subscription_type }} will end
+            {% if subscription_days_left == 0 %}
+                today.
+            {% elif subscription_days_left == 1 %}
+                tomorrow.
+            {% else %}
+                 in {{ subscription_days_left }} day{{ subscription_days_left|pluralize }}. 
+            {% endif %}
+            <a href="https://wa.me/+963937459456" class="underline font-bold">Renew now</a> to avoid service interruption.
+        </div>
+    </div>
+    {% endif %}
+
     {% if request.user.first_name %}
     <!-- This is the new, updated navbar-end section -->
     <div class="navbar-end flex items-center gap-2">

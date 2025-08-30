@@ -39,6 +39,7 @@ class Subscription(models.Model):
         ('trial', 'Trial'),
         ('past_due', 'Past Due'),
         ('canceled', 'Canceled'),
+        ('trial_expired', 'Trial Expired'),
         ('expired', 'Expired'),
     ]
     
@@ -54,6 +55,10 @@ class Subscription(models.Model):
     # Billing information
     billing_email = models.EmailField()
     payment_method_id = models.CharField(max_length=255, blank=True)
+
+    # Notification tracking
+    days_to_expiry_warning_sent = models.IntegerField(null=True, blank=True, help_text="Tracks which day's warning email has been sent (e.g., 5, 4, 3, 2, 1). Null if none sent.")
+    expiry_notification_sent = models.BooleanField(default=False)
     
     
     def __str__(self):

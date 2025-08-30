@@ -17,7 +17,10 @@ from campaign.tasks_inngest import (
     create_campaign_stats,
     calculate_daily_stats,
     complete_campaign,
-    calculate_all_campaigns_overall_stats
+    calculate_all_campaigns_overall_stats,
+    check_subscriptions,
+    notify_ending_soon,
+    notify_expired
 )
 
 
@@ -32,7 +35,10 @@ active_inngest_functions = [
     create_campaign_stats,
     calculate_daily_stats,
     complete_campaign,
-    calculate_all_campaigns_overall_stats
+    calculate_all_campaigns_overall_stats,
+    check_subscriptions,
+    notify_ending_soon,
+    notify_expired
 ]
 
 

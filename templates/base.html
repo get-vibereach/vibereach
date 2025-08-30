@@ -151,9 +151,19 @@
     
   </head>
   <body class="h-screen overflow-hidden bg-base-200">
-        {% block base-content %}
-     
-        {% endblock %}
+
+    <!-- Subscription Notifications -->
+    {% if is_view_only %}
+    <div class="content-center min-h-16 backdrop-blur-md rounded-box ml-0 mr-2 sm:mx-4 lg:mx-auto mt-2 max-w-6xl shadow-lg fixed top-0 left-0 right-0 z-50 bg-error text-white text-center p-2">
+        Your {{ subscription_type }} has ended. You are in view-only mode. <a href="https://wa.me/+963937459456" class="underline font-bold">Renew now</a>.
+    </div>
+    {% endif %}
+
+
+    <!-- Main Content Area -->
+    {% block base-content %}
+    
+    {% endblock %}
 
 
 
