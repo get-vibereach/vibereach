@@ -24,6 +24,10 @@ def reset_password_view(request):
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
 
+        if len(new_password) < 8:
+            messages.error(request, 'Password must be at least 8 characters long.')
+            return redirect('reset_password')
+
         if new_password and new_password == confirm_password:
             # Add password validation logic here if needed
             request.user.set_password(new_password)
