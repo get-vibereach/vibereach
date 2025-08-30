@@ -45,7 +45,7 @@
         <div class="card w-full max-w-sm shrink-0 shadow-lg bg-base-100">
             <form class="card-body" method="post" action="{% url 'login_submit' %}">
                 {% csrf_token %}
-                <h2 class="card-title text-2xl font-bold justify-start mb-4">Login</h2>
+                <h2 class="card-title text-2xl font-bold justify-start mb-4">OK, let's Login <span class="text-success"> {{ request.user.first_name }}!</span></h2>
 
                 {% if next_url %}
                     <input type="hidden" name="next" value="{{ next_url }}">

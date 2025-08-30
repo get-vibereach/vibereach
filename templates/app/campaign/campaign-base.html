@@ -8,6 +8,7 @@
         <!-- Top Nav & Actions -->
         <div class="flex items-center justify-between">
             <div role="tablist" class="tabs">
+                {% if campaign_status is 'active' or 'completed' %}
                 <a role="tab"
                    href="{% url 'campaign_dashboard' campaign_id %}"
                    class="tab h-auto pb-2 px-1 text-base mx-4 {% if current_tab == 'analytics' %}text-primary tab-active-underline border-primary{% else %}text-gray-500{% endif %}">
@@ -16,6 +17,9 @@
                    href="{% url 'campaign_msgs_performance' campaign_id %}"
                    class="tab h-auto pb-2 px-1 text-base mx-4 {% if current_tab == 'msgs_performance' %}text-primary tab-active-underline border-primary{% else %}text-gray-500{% endif %}">
                         Msgs Performance</a>
+
+                {% endif %}
+
                 <a role="tab"
                    href="{% url 'campaign_leads' campaign_id %}"
                    class="tab h-auto pb-2 px-1 text-base mx-4 {% if current_tab == 'leads' %}text-primary tab-active-underline border-primary{% else %}text-gray-500{% endif %}">
