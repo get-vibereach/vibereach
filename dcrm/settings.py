@@ -76,6 +76,17 @@ OPEN_URLS = [
     r"^/admin/.*$",
 ]
 
+
+VIEW_ONLY_EXEMPT_URLS = [
+    r"^/feedback/api/quick-feedback/.*$",
+    r"^/feedback/api/main-feedback/.*$",
+    r"^/feedback/api/feature-request/.*$",
+    r"^/support/api/messages/.*$",
+    r"^/support/api/sessions/.*$",
+    r"^/support/webhook/telegram/.*$",
+]
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
