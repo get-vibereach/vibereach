@@ -173,6 +173,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ["first_name", "last_name", "email", "position", "phone_number", "linkedin_profile", "onboarding_completed"]
 
+class EmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
 class TrialRegistrationSerializer(serializers.Serializer):
     user = UserUpdateSerializer()
     company = CompanyRegistrationSerializer()

@@ -9,12 +9,11 @@ from rest_framework.response import Response
 from api.serializers import (
     LoginSerializer, CompanyRegistrationSerializer, UserRegistrationSerializer, UserUpdateSerializer, TrialRegistrationSerializer
 )
-from .models import SubscribedCompany, CustomUser, SignupToken
+from .models import LoginToken, SubscribedCompany, CustomUser, SignupToken, Plan, Subscription
 from django.contrib.auth.decorators import login_not_required
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
-@login_not_required
 def trial_signup_view(request, token):
     try:
         signup_token = get_object_or_404(SignupToken, token=token)
@@ -32,9 +31,6 @@ def trial_signup_view(request, token):
 
     except SignupToken.DoesNotExist:
         return render(request, 'auth/404.html', {'message': 'Invalid signup link.'}, status=404)
-
-
-
 
 def custom_404_view(request, exception):
     return render(request, 'auth/404.html', status=404)
@@ -252,12 +248,26 @@ def api_trial_registration(request):
             user.set_unusable_password()
             user.save()
 
+            # Create a trial subscription for the new company
+            try:
+                trial_plan = Plan.objects.get(slug='trial')
+                Subscription.objects.create(
+                    subscribed_company=company,
+                    plan=trial_plan,
+                    status='trial',
+                    billing_email=user.email,
+                )
+            except Plan.DoesNotExist:
+                # Handle case where trial plan is not found
+                # Maybe log an error or do nothing
+                pass
+
             # Mark token as used
             signup_token.is_used = True
             signup_token.save()
 
-            # Log the user in; notice he doesnot has password!
-            # login(request, user)
+            # Log the user in
+            login(request, user)
 
             return Response({
                 'success': True,
@@ -276,6 +286,27 @@ def api_trial_registration(request):
 
 
 from django.contrib.auth import get_user_model
+
+
+def login_with_token_view(request, token):
+    try:
+        login_token = get_object_or_404(LoginToken, token=token)
+
+        if login_token.is_used:
+            return render(request, 'auth/404.html', {'message': 'This login link has already been used.'}, status=410)
+
+        if login_token.expires_at < timezone.now():
+            return render(request, 'auth/404.html', {'message': 'This login link has expired.'}, status=410)
+
+        user = login_token.user
+        login(request, user)
+        login_token.is_used = True
+        login_token.save()
+
+        return redirect('overall_dashboard')
+
+    except LoginToken.DoesNotExist:
+        return render(request, 'auth/404.html', {'message': 'Invalid login link.'}, status=404)
 
 User = get_user_model()
 

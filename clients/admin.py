@@ -1,8 +1,22 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from .models import Plan, Subscription, BillingHistory, CustomUser, SubscribedCompany, Product, EmailAccount, SignupToken
+from .models import Plan, Subscription, BillingHistory, CustomUser, SubscribedCompany, Product, EmailAccount, SignupToken, LoginToken
 from django.utils.html import format_html
+from django.urls import reverse
+
+
+@admin.register(LoginToken)
+class LoginTokenAdmin(admin.ModelAdmin):
+    list_display = ('user', 'token', 'is_used', 'created_at', 'expires_at', 'magic_link')
+    readonly_fields = ('token', 'created_at', 'expires_at', 'magic_link')
+    list_filter = ('is_used',)
+    search_fields = ('user__email',)
+
+    def magic_link(self, obj):
+        link = reverse('login_with_token', args=[obj.token])
+        return format_html('<a href="{}" target="_blank">{}</a>', link, link)
+    magic_link.short_description = 'Magic Link'
 
 
 @admin.register(SignupToken)
@@ -61,7 +75,7 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'password1', 'password2'),
+            'fields': ('username', 'password2', 'password2'),
         }),
         ('Personal Information', {
             'fields': ('email', 'first_name', 'last_name'),
@@ -122,3 +136,5 @@ class EmailAccountAdmin(admin.ModelAdmin):
     list_display = ('id', 'subscribed_company', 'email', 'connection_type', 'status', 'emails_sent', 'daily_limit')
     search_fields = ('email', 'subscribed_company__name', )
     list_filter = ('subscribed_company', 'connection_type', 'status',)
+    
+    

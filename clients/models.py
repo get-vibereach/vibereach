@@ -8,6 +8,22 @@ from django.utils.text import slugify
 import uuid
 
 
+class LoginToken(models.Model):
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    user = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.expires_at = timezone.now() + timedelta(minutes=15) # Shorter expiry for login links
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Login token for {self.user.email}"
+
+
 class SignupToken(models.Model):
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     email = models.EmailField(blank=True, null=True)
@@ -57,7 +73,8 @@ class Plan(models.Model):
 
     def save(self, *args, **kwargs):
         # Automatically generate slug
-        self.slug = slugify(self.name)
+        if not self.slug:
+            self.slug = slugify(self.name)
 
         # Set duration_days based on billing cycle
         if self.billing_cycle == 'monthly':
@@ -311,4 +328,3 @@ class EmailAccount(models.Model):
         """
         from campaign.email_sender import test_email_account_connection
         return test_email_account_connection(self)
-
