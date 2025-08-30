@@ -593,14 +593,16 @@ def launch_campaign(request, pk):
 
 
         try:
-            # Create/update campaign stats first
-            inngest_client.send_sync(
-                inngest.Event(
-                    name="campaigns/create_stats",
-                    data={"campaign_id": campaign.id}
+            # Create/get campaign stats first
+            from campaign.services import AnalyticsService
+            CampaignStats.objects.get_or_create(campaign=campaign)
+
+            # Create/get campaign scheduler first
+            from campaign.models import CampaignScheduler
+            CampaignScheduler.objects.get_or_create(
+                campaign=campaign,
+                subscribed_company=request.user.subscribed_company,
                 )
-            )
-            logger.info(f"📊 Campaign stats creation triggered for campaign {campaign.id}")
 
             # Trigger the campaign scheduler event (this will handle everything)
             inngest_client.send_sync(
