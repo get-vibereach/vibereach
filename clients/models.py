@@ -1,4 +1,6 @@
 from datetime import timedelta
+from django.conf import settings
+from django.urls import reverse
 from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import AbstractUser, Group, Permission
@@ -10,7 +12,7 @@ import uuid
 
 class LoginToken(models.Model):
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    user = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    email = models.EmailField(blank=True, null=True)
     is_used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
@@ -21,7 +23,20 @@ class LoginToken(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Login token for {self.user.email}"
+        return f"Login token for user with {self.email}"
+    
+    def magic_login_link(self):
+        relative_link = reverse('login_with_token', args=[self.token])
+        base_url = getattr(settings, 'SITE_URL', None)
+
+        if not base_url:
+            print("WARNING: SITE_BASE_URL not set in settings. Defaulting to relative link.")
+            return relative_link
+
+        from urllib.parse import urljoin
+        full_url = urljoin(base_url, relative_link)
+
+        return full_url
 
 
 class SignupToken(models.Model):
@@ -123,12 +138,18 @@ class Subscription(models.Model):
     expiry_notification_sent = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
+        is_new_object = self._state.adding
+
+        if is_new_object and self.start_date is None:
+            self.start_date = timezone.now()
         # Update trial_end_date or current_period_end based on status
         if self.status == 'trial' and not self.trial_end_date:
-            self.trial_end_date = self.start_date + timedelta(days=self.plan.duration_days)
+            if self.plan_id:
+                self.trial_end_date = self.start_date + timedelta(days=self.plan.duration_days)
 
         elif self.status == 'active' and not self.current_period_end:
-            self.current_period_end = self.start_date + timedelta(days=self.plan.duration_days)
+            if self.plan_id:
+                self.current_period_end = self.start_date + timedelta(days=self.plan.duration_days)
 
         elif self.status == 'canceled':
             self.canceled_at = timezone.now()

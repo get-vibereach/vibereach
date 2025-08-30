@@ -8,21 +8,26 @@ from django.urls import reverse
 
 @admin.register(LoginToken)
 class LoginTokenAdmin(admin.ModelAdmin):
-    list_display = ('user', 'token', 'is_used', 'created_at', 'expires_at', 'magic_link')
-    readonly_fields = ('token', 'created_at', 'expires_at', 'magic_link')
+    list_display = ('email', 'token', 'is_used', 'created_at', 'expires_at', 'magic_login_link')
+    readonly_fields = ('token', 'created_at', 'expires_at', 'magic_login_link')
     list_filter = ('is_used',)
-    search_fields = ('user__email',)
+    search_fields = ('email',)
 
-    def magic_link(self, obj):
+    def magic_login_link(self, obj):
         link = reverse('login_with_token', args=[obj.token])
         return format_html('<a href="{}" target="_blank">{}</a>', link, link)
-    magic_link.short_description = 'Magic Link'
+    magic_login_link.short_description = 'Magic Login Link'
 
 
 @admin.register(SignupToken)
 class SignupTokenAdmin(admin.ModelAdmin):
-    list_display = ('token', 'email', 'is_used', 'created_at', 'expires_at')
-    readonly_fields = ('token', 'created_at', 'expires_at')
+    list_display = ('email', 'is_used', 'created_at', 'expires_at', 'magic_signup_link')
+    readonly_fields = ('token', 'created_at', 'expires_at', 'magic_signup_link')
+
+    def magic_signup_link(self, obj):
+        link = reverse('trial_signup', args=[obj.token])
+        return format_html('<a href="{}" target="_blank">{}</a>', link, link)
+    magic_signup_link.short_description = 'Magic Signup Link'
 
 
 class CustomUserCreationForm(UserCreationForm):

@@ -1168,3 +1168,31 @@ def notify_expired(ctx: inngest.Context):
         logger.error(f"Subscription with ID {subscription_id} not found.")
         return {"status": "error", "message": "Subscription not found"}
 
+
+
+
+
+
+@inngest_client.create_function(
+    fn_id="notify_admin_on_new_user",
+    trigger=inngest.TriggerEvent(event="users/new.user.registered"),
+)
+def notify_admin_on_new_user_task(ctx: inngest.Context):
+    """
+    notifying admin on new user registration
+    """
+    from .system_emails import send_admin_new_user_notification
+    from clients.models import CustomUser, SubscribedCompany
+
+    user_id = ctx.event.data.get("user_id")
+    company_id = ctx.event.data.get("company_id")
+
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        company = SubscribedCompany.objects.get(id=company_id)
+        login_token_url = ctx.event.data.get("login_token_url")
+        send_admin_new_user_notification(user, company, login_token_url)
+    except (CustomUser.DoesNotExist, SubscribedCompany.DoesNotExist) as e:
+        logger.error(f"Could not send admin notification: {e}")
+        return {"status": "error", "message": str(e)}
+    return {"status": "success"}
