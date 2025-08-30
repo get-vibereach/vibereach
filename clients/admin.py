@@ -21,7 +21,7 @@ class CustomUserChangeForm(UserChangeForm):
 
 @admin.register(SubscribedCompany)
 class SubscribedCompanyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'website', 'employee_count', 'location')
+    list_display = ('id', 'name', 'website', 'employee_count', 'location')
     search_fields = ('name', 'website')
     list_filter = ('employee_count', 'location',)
 
@@ -29,7 +29,7 @@ class SubscribedCompanyAdmin(admin.ModelAdmin):
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'billing_cycle')
+    list_display = ('id', 'name', 'price', 'billing_cycle')
 
 
 
@@ -41,7 +41,7 @@ class CustomUserAdmin(UserAdmin):
     model = CustomUser
 
     # Display fields in the list view
-    list_display = ('username', 'email', 'first_name', 'last_name', 'subscribed_company', 'is_staff', 'is_active', 'onboarding_completed')
+    list_display = ('id', 'username', 'email', 'first_name', 'last_name', 'subscribed_company', 'is_staff', 'is_active', 'onboarding_completed')
     search_fields = ('email', 'username', 'first_name', 'last_name', 'subscribed_company')
     list_filter = ('subscribed_company', 'is_staff', 'is_active', 'is_superuser', 'onboarding_completed')
 
@@ -70,14 +70,33 @@ class CustomUserAdmin(UserAdmin):
     
 
 
-admin.site.register(Subscription)
-admin.site.register(BillingHistory)
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'subscribed_company', 'plan', 'status', 'start_date', 'trial_end_date',
+        'current_period_end', 'billing_email', 'days_to_expiry_warning_sent',
+        'expiry_notification_sent'
+    )
+    list_filter = (
+        'subscribed_company', 'plan', 'status', 'start_date', 'trial_end_date',
+        'current_period_end', 'expiry_notification_sent'
+    )
+    search_fields = (
+        'subscribed_company__name', 'plan__name', 'billing_email',
+        'payment_method_id'
+    )
 
+
+@admin.register(BillingHistory)
+class BillingHistoryAdmin(admin.ModelAdmin):
+    list_display = ('id', 'subscribed_company', 'subscription', 'amount', 'description', 'invoice_id', 'payment_method', 'status')
+    search_fields = ('id', 'subscribed_company__name', 'name', 'description', 'subscribed_company__name')
+    list_filter = ('subscribed_company', 'status') 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('subscribed_company', 'name', 'campaign_count', 'landing_page_link') 
-    search_fields = ('name', 'description', 'subscribed_company__name')
+    list_display = ('id', 'subscribed_company', 'name', 'campaign_count', 'landing_page_link') 
+    search_fields = ('subscribed_company__name', 'name', 'description', 'subscribed_company__name')
     list_filter = ('subscribed_company',) 
     
     def campaign_count(self, obj):
@@ -94,8 +113,8 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(EmailAccount)
 class EmailAccountAdmin(admin.ModelAdmin):
-    list_display = ('subscribed_company', 'id', 'email', 'connection_type', 'status', 'emails_sent', 'daily_limit')
-    search_fields = ('email', 'subscribed_company')
+    list_display = ('id', 'subscribed_company', 'email', 'connection_type', 'status', 'emails_sent', 'daily_limit')
+    search_fields = ('email', 'subscribed_company__name', )
     list_filter = ('subscribed_company', 'connection_type', 'status',)
     
     
