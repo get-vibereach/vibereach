@@ -17,6 +17,11 @@ class LoginToken(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.expires_at = timezone.now() + timedelta(days=3)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Login token for user with {self.email}"
     
