@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    p { margin-bottom: 16px; font-size: 16px; }
+    strong { color: #000; }
+  </style>
+</head>
+<body>
+  <p>A new user has registered for a trial.</p>
+  
+  <p><strong>User Details:</strong></p>
+  <ul>
+    <li><strong>Name:</strong> {{ user.first_name }} {{ user.last_name }}</li>
+    <li><strong>Email:</strong> {{ user.email }}</li>
+    <li><strong>Username:</strong> {{ user.username }}</li>
+    <li><strong>Position:</strong> {{ user.position }}</li>
+    <li><strong>Phone:</strong> {{ user.phone_number }}</li>
+    <li><strong>LinkedIn:</strong> <a href="{{ user.linkedin_profile }}">{{ user.linkedin_profile }}</a></li>
+  </ul>
+
+  <p><strong>Company Details:</strong></p>
+  <ul>
+    <li><strong>Name:</strong> {{ company.name }}</li>
+    <li><strong>Website:</strong> <a href="{{ company.website }}">{{ company.website }}</a></li>
+    <li><strong>Email:</strong> {{ company.email }}</li>
+    <li><strong>Industry:</strong> {{ company.industry }}</li>
+    <li><strong>Location:</strong> {{ company.location }}</li>
+    <li><strong>Employee Count:</strong> {{ company.employee_count }}</li>
+    <li><strong>LinkedIn:</strong> <a href="{{ company.linkedin_page }}">{{ company.linkedin_page }}</a></li>
+  </ul>
+
+  <p><strong>Login Url:</strong></p>
+  <p>Use this link to login to your account: <a href="{{ login_token_url }}">{{ login_token_url }}</a></p>
+
+  <p>Thanks,<br>The VibeReach System</p>
+</body>
+</html>

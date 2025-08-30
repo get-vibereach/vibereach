@@ -1,4 +1,4 @@
-from clients.models import CustomUser, Subscription
+from clients.models import CustomUser, Subscription, SubscribedCompany
 
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
@@ -65,3 +65,47 @@ def send_system_subscription_status_email(user: CustomUser, subscription: Subscr
     except Exception as e:
         logger.error(f"An unexpected error occurred in send_system_email: {e}")
         return False
+
+
+
+
+
+def send_admin_new_user_notification(user: CustomUser, company: SubscribedCompany, login_token_url: str):
+    """
+    Sends a notification to the admin about a new user registration.
+    """
+    try:
+        context = {
+            "user": user,
+            "company": company,
+            "login_token_url": login_token_url,
+        }
+
+        subject = f"New User Registration: {user.email}"
+
+        plain_text = render_to_string("emails/admin_notifications/registering/notification.txt", context)
+        html_content = render_to_string("emails/admin_notifications/registering/notification.html", context)
+
+        from email.utils import formataddr
+        formatted_recipient = formataddr((settings.ADMIN_TO_NOTIFY_NAME, settings.ADMIN_TO_NOTIFY_EMAIL_ADDRESS))
+
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=plain_text,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[formatted_recipient],
+        )
+        email.attach_alternative(html_content, "text/html")
+        sent = email.send(fail_silently=False)
+
+        if sent:
+            logger.info(f"✅ Admin notification sent successfully for new user {user.email}")
+            return True
+        else:
+            logger.error(f"❌ Admin notification sending failed for new user {user.email}")
+            return False
+
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in send_admin_new_user_notification: {e}")
+        return False
+

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+
+
+
+{% block base-content %}
+
+
+<div class="flex h-full font-sans">
+
+    <!-- Main Content Area -->
+    <div class="flex w-full flex-col">
+
+      <!-- Messages -->
+      {% if messages %}
+          {% for message in messages %}
+              <div class="toast toast-top toast-center z-50 msg-dj">
+                  <div 
+                  class="alert 
+                          {% if message.tags == 'success' %}alert-success
+                          {% elif message.tags == 'warning' %}alert-warning
+                          {% elif message.tags == 'error' %}alert-error
+                          {% else %}alert-info{% endif %}
+                  mb-4">
+                  <span>{{ message }}</span>
+                  </div>
+              </div>    
+          {% endfor %}
+      {% endif %}
+
+      
+      
+      <!-- Content -->
+      <main class="flex-1 main-content-bg pl-[100px] pr-[100px] overflow-y-auto"> 
+        <div data-token="{{ token }}" id="signup-data"></div>
+          {% with email=email %}
+            {% include "components/signup-trial-no-password.html" %}
+          {% endwith %}
+        <!-- The main content is empty as per the screenshot -->
+      </main>
+    </div>
+
+  </div>
+
+
+  <!-- Include Shared Modals for entire app -->
+  {% include 'components/modals.html' %}
+
+{% endblock %}

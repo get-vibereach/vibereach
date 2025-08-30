@@ -19,7 +19,8 @@ from campaign.tasks_inngest import (
     calculate_all_campaigns_overall_stats,
     check_subscriptions,
     notify_ending_soon,
-    notify_expired
+    notify_expired,
+    notify_admin_on_new_user_task,
 )
 
 
@@ -36,7 +37,8 @@ active_inngest_functions = [
     calculate_all_campaigns_overall_stats,
     check_subscriptions,
     notify_ending_soon,
-    notify_expired
+    notify_expired,
+    notify_admin_on_new_user_task,
 ]
 
 

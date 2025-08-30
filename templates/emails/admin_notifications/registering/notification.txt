@@ -1,0 +1,24 @@
+A new user has registered for a trial.
+
+User Details:
+- Name: {{ user.first_name }} {{ user.last_name }}
+- Email: {{ user.email }}
+- Username: {{ user.username }}
+- Position: {{ user.position }}
+- Phone: {{ user.phone_number }}
+- LinkedIn: {{ user.linkedin_profile }}
+
+Company Details:
+- Name: {{ company.name }}
+- Website: {{ company.website }}
+- Email: {{ company.email }}
+- Industry: {{ company.industry }}
+- Location: {{ company.location }}
+- Employee Count: {{ company.employee_count }}
+- LinkedIn: {{ company.linkedin_page }}
+
+Login Url:
+Use this link to login to your account: {{ login_token_url }}
+
+Thanks,
+The VibeReach System

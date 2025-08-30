@@ -3,15 +3,19 @@ from . import views
 
 urlpatterns = [
     # Template views
+    path('signup/<uuid:token>/', views.trial_signup_view, name='trial_signup'),
     path('login/', views.login_view, name='login'),
     path('login/submit/', views.login_submit, name='login_submit'),
+    path('login/<uuid:token>/', views.login_with_token_view, name='login_with_token'),
     path('logout/', views.logout_view, name='logout'),
+    path('reset-password/', views.reset_password_view, name='reset_password'),
     #path('register/company/', views.company_registration_view, name='company_registration'),
     #path('register/user/', views.user_registration_view, name='user_registration'),
 
     # API endpoints
     path('api/login/', views.api_login, name='api_login'),
     path('api/logout/', views.api_logout, name='api_logout'),
+    path('api/trial-registration/', views.api_trial_registration, name='api_trial_registration'),
     #path('api/register/company/', views.api_company_registration, name='api_company_registration'),
     #path('api/register/user/', views.api_user_registration, name='api_user_registration'),
     path('api/user/update-info/', views.UserUpdateView.as_view(), name='api_user_update_info'),
