@@ -89,8 +89,7 @@ class BillingHistory(models.Model):
         verbose_name_plural = "Billing Histories"
     
     def __str__(self):
-        return f"{self.amount}-{self.status}-{self.subscribed_company}"
-
+        return self.invoice_id
 
 
 class CustomUser(AbstractUser):

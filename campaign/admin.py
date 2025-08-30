@@ -7,9 +7,7 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.urls import path
-from urllib.parse import unquote
 
-from campaign.email_sender import send_campaign_email
 from .models import (
     LeadList, Product, Campaign, Lead,
     CampaignLead, Message, MessageAssignment, CampaignStats, Schedule, CampaignOptions, CampaignDailyStats
@@ -42,19 +40,17 @@ get_subscribed_company_display.admin_order_field = 'subscribed_company__name' # 
 # Admin configurations
 @admin.register(CampaignOptions)
 class CampaignOptionsAdmin(admin.ModelAdmin):
-    list_display = (get_subscribed_company_display, 'campaign', 'open_tracking_enabled', 'link_tracking_enabled', 'daily_limit', 'stop_on_reply')
+    list_display = ('id', get_subscribed_company_display, 'campaign', 'open_tracking_enabled', 'link_tracking_enabled', 'daily_limit', 'stop_on_reply')
     list_filter = ('campaign__subscribed_company', 'open_tracking_enabled', 'link_tracking_enabled', 'stop_on_reply')
-    # Add subscribed_company to search fields if desired, e.g., 'campaign__subscribed_company__name'
+    search_fields = ('campaign__name', 'campaign__subscribed_company__name')
 
 
 @admin.register(CampaignStats)
 class CampaignStatsAdmin(admin.ModelAdmin):
     list_display = (
-        get_subscribed_company_display, 'campaign', 'total_leads', 'sequence_started_count',
-        'opened_count', 'open_rate_percentage', 'clicked_count',
-        'click_rate_percentage', 'replied_count', 'reply_rate_percentage',
-        'opportunities_count', 'opportunity_value', 'conversions_count',
-        'conversion_total_value', 'best_message', 'updated_at'
+        'id', get_subscribed_company_display, 'campaign', 'total_leads', 'sequence_started_count',
+        'open_rate_percentage', 'click_rate_percentage', 'reply_rate_percentage',
+        'opportunities_count', 'opportunity_value', 'updated_at'
     )
     list_filter = ('campaign__subscribed_company', 'campaign', 'updated_at')
     search_fields = ('campaign__name', 'campaign__subscribed_company__name')
@@ -70,13 +66,8 @@ class CampaignStatsAdmin(admin.ModelAdmin):
 @admin.register(CampaignDailyStats)
 class CampaignDailyStatsAdmin(admin.ModelAdmin):
     list_display = (
-        get_subscribed_company_display, 'campaign', 'date', 'emails_sent_today', 'opens_today',
-        'clicks_today', 'replies_today', 'opportunities_today',
-        'conversions_today', 'opportunities_value_today',
-        'conversions_value_today', 'total_emails_sent', 'total_opens',
-        'total_clicks', 'total_replies', 'total_opportunities',
-        'total_conversions', 'total_opportunities_value',
-        'total_conversions_value'
+        'id', get_subscribed_company_display, 'campaign', 'date', 'emails_sent_today', 'opens_today',
+        'clicks_today', 'replies_today',
     )
     list_filter = ('campaign__subscribed_company', 'campaign', 'date')
     search_fields = ('campaign__name', 'campaign__subscribed_company__name')
@@ -93,7 +84,7 @@ class CampaignDailyStatsAdmin(admin.ModelAdmin):
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
-    list_display = ('subscribed_company', 'name', 'campaign', 'start_date', 'timing_from', 'timing_to', 'time_zone', 'days')
+    list_display = ('id', 'subscribed_company', 'name', 'campaign', 'start_date', 'timing_from', 'timing_to', 'time_zone', 'days')
     list_filter = ('subscribed_company', 'campaign') # Added subscribed_company to filter
     search_fields = ('name', 'subscribed_company__name', 'campaign__name') # Added subscribed_company to search
 
@@ -130,7 +121,7 @@ class CampaignFilter(SimpleListFilter):
 
 @admin.register(Campaign)
 class CampaignAdmin(admin.ModelAdmin):
-    list_display = ('subscribed_company', 'name', 'product', 'start_date', 'end_date', 'is_active', 'lead_count')
+    list_display = ('id', 'subscribed_company', 'name', 'product', 'start_date', 'end_date', 'is_active', 'lead_count')
     list_filter = ('subscribed_company', 'is_active', 'product', 'start_date') # Added subscribed_company to filter
     search_fields = ('name', 'short_name', 'product__name', 'subscribed_company__name') # Added subscribed_company to search
     inlines = [CampaignLeadInline]
@@ -141,7 +132,7 @@ class CampaignAdmin(admin.ModelAdmin):
     
 @admin.register(LeadList)
 class LeadListAdmin(admin.ModelAdmin):
-    list_display = ('subscribed_company', 'title', 'display_tags', 'display_campaigns')
+    list_display = ('id', 'subscribed_company', 'title', 'display_tags', 'display_campaigns')
     list_filter = ('subscribed_company',) # Added subscribed_company to filter
     search_fields = ('title', 'tags', 'subscribed_company__name') # Added subscribed_company to search
     
@@ -156,7 +147,7 @@ class LeadListAdmin(admin.ModelAdmin):
 @admin.register(Lead)
 class LeadAdmin(ImportExportModelAdmin):
     resource_class = LeadResource
-    list_display = ('subscribed_company', 'full_name', 'email', 'company_name', 'lead_type', 'source', 'campaign_count')
+    list_display = ('id', 'subscribed_company', 'full_name', 'email', 'company_name', 'lead_type', 'source', 'campaign_count')
     list_filter = ('subscribed_company', 'lead_type', 'source', 'created_at') # Added subscribed_company to filter
     search_fields = ('full_name', 'email', 'company_name', 'subscribed_company__name') # Added subscribed_company to search
     fieldsets = (
@@ -254,7 +245,7 @@ class CampaignLeadForm(forms.ModelForm):
 @admin.register(CampaignLead)
 class CampaignLeadAdmin(admin.ModelAdmin):
     form = CampaignLeadForm
-    list_display = (get_subscribed_company_display, 'lead', 'lead__lead_list', 'campaign', 'is_converted', 'total_clicks', 'converted_at', 'created_at')
+    list_display = ('id', get_subscribed_company_display, 'lead', 'lead__lead_list', 'campaign', 'is_converted', 'total_clicks', 'converted_at', 'created_at')
     list_filter = ('campaign__subscribed_company', 'is_converted', 'campaign', 'created_at') # Added subscribed_company to filter
     search_fields = ('lead__full_name', 'lead__email', 'campaign__name', 'campaign__subscribed_company__name') # Added subscribed_company to search
     inlines = [MessageAssignmentInline]
@@ -347,7 +338,7 @@ class CampaignLeadAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = (get_subscribed_company_display, 'subject', 'product', 'cta', 'message_preview')
+    list_display = ('id', get_subscribed_company_display, 'subject', 'product', 'cta', 'message_preview')
     search_fields = ('subject', 'content', 'cta', 'product__name', 'product__subscribed_company__name') # Added subscribed_company to search
     list_filter = ('product__subscribed_company', 'product') # Added subscribed_company to filter
     
@@ -394,7 +385,7 @@ class MessageAssignmentAdminForm(forms.ModelForm):
 @admin.register(MessageAssignment)
 class MessageAssignmentAdmin(admin.ModelAdmin):
     form = MessageAssignmentAdminForm
-    list_display = (get_subscribed_company_display, 'id', 'campaign_lead', 'message', 'link_details', 'delayed_by_days', 'sent', 'opened', 'responded', 'sent_at')
+    list_display = ('id', get_subscribed_company_display, 'campaign_lead', 'message', 'link_details', 'delayed_by_days', 'sent', 'sent_at')
     list_filter = ('campaign__subscribed_company', 'campaign', 'responded', 'delayed_by_days', 'sent_at', 'sent') # Added subscribed_company to filter
     search_fields = ('campaign_lead__lead__full_name', 'message__subject', 'campaign__subscribed_company__name') # Added subscribed_company to search
     
@@ -407,15 +398,12 @@ class MessageAssignmentAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['personalize_selected_messages', 'send_selected_messages']
     
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
             path('get-campaign-leads/', self.admin_site.admin_view(self.get_campaign_leads), name='get_campaign_leads'),
             path('get-campaign-messages/', self.admin_site.admin_view(self.get_campaign_messages), name='get_campaign_messages'),
-            path('<int:message_id>/personalize/', self.admin_site.admin_view(self.personalize_message), name='personalize_message'),
-            path('<int:message_id>/send/', self.admin_site.admin_view(self.send_message), name='send_message'),
         ]
         return custom_urls + urls
     
@@ -526,96 +514,6 @@ class MessageAssignmentAdmin(admin.ModelAdmin):
             return HttpResponseRedirect("../")
         return super().response_add(request, obj, post_url_continue)
     
-    def personalize_message(self, request, message_id):
-        try:
-            message_assignment = self.model.objects.get(id=message_id)
-            from campaign.tasks import personalize_message_task
-            task = personalize_message_task.delay(message_id)
-            self.message_user(
-                request, 
-                f"Scheduled personalization task (ID: {task.id}) for {message_assignment.campaign_lead}",
-                level=messages.SUCCESS
-            )
-        except self.model.DoesNotExist:
-            self.message_user(request, f"Message assignment with ID {message_id} does not exist", level=messages.ERROR)
-        except Exception as e:
-            self.message_user(request, f"Error scheduling personalization task: {str(e)}", level=messages.ERROR)
-        return HttpResponseRedirect(f"../../../campaign/messageassignment/{message_id}/change/")
-
-    def personalize_selected_messages(self, request, queryset):
-        try:
-            from campaign.tasks import personalize_message_task
-            count = 0
-            for message_assignment in queryset:
-                personalize_message_task.delay(message_assignment.id)
-                count += 1
-            self.message_user(
-                request, 
-                f"Scheduled personalization tasks for {count} messages",
-                level=messages.SUCCESS
-            )
-        except Exception as e:
-            self.message_user(request, f"Error scheduling personalization tasks: {str(e)}", level=messages.ERROR)
-    personalize_selected_messages.short_description = "Personalize selected messages with AI"
-    
-    def send_message(self, request, message_id):
-        try:
-            message_assignment = self.model.objects.get(id=message_id)
-            
-            if not message_assignment.personlized_msg_to_send:
-                self.message_user(request, f"Message assignment ID {message_id} has no personalized content", level=messages.ERROR)
-                return HttpResponseRedirect(f"../../../campaign/messageassignment/{message_id}/change/")
-                
-            if message_assignment.sent:
-                self.message_user(request, f"Message assignment ID {message_id} has already been sent", level=messages.WARNING)
-                return HttpResponseRedirect(f"../../../campaign/messageassignment/{message_id}/change/")
-            
-            from campaign.tasks import send_email_task
-            task = send_email_task.delay(message_id)
-            
-            self.message_user(
-                request, 
-                f"Scheduled email sending task (ID: {task.id}) for {message_assignment.campaign_lead.lead.email}",
-                level=messages.SUCCESS
-            )
-                
-        except self.model.DoesNotExist:
-            self.message_user(request, f"Message assignment with ID {message_id} does not exist", level=messages.ERROR)
-        except Exception as e:
-            self.message_user(request, f"Error scheduling email sending task: {str(e)}", level=messages.ERROR)
-        
-        return HttpResponseRedirect(f"../../../campaign/messageassignment/{message_id}/change/")
-
-    def send_selected_messages(self, request, queryset):
-        try:
-            queryset = queryset.filter(
-                personlized_msg_to_send__isnull=False,
-                personlized_msg_to_send__gt='',
-                sent=False
-            )
-            
-            if not queryset.exists():
-                self.message_user(
-                    request, 
-                    "No messages selected that are personalized and not yet sent",
-                    level=messages.WARNING
-                )
-                return
-                
-            from campaign.tasks import send_email_task
-            count = 0
-            for message_assignment in queryset:
-                send_email_task.delay(message_assignment.id)
-                count += 1
-            
-            self.message_user(
-                request, 
-                f"Scheduled email sending tasks for {count} messages",
-                level=messages.SUCCESS
-            )
-        except Exception as e:
-            self.message_user(request, f"Error scheduling email sending tasks: {str(e)}", level=messages.ERROR)
-    send_selected_messages.short_description = "Send emails for selected messages"
     
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
