@@ -245,8 +245,8 @@ LOGGING = {
     },
 }
 
-# Site URL for generating absolute URLs
-SITE_URL = env('SITE_URL')
+SITE_URL = env('SITE_URL', default='http://localhost:8000')
+
 
 # PyTracking configuration
 PYTRACKING_CONFIGURATION = {
@@ -284,13 +284,15 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 
 
 
+
 # Telegram Bot Settings
 TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default=None)
 TELEGRAM_SUPPORT_CHAT_ID = env('TELEGRAM_SUPPORT_CHAT_ID', default=None)
 TELEGRAM_WEBHOOK_API_KEY = env('TELEGRAM_WEBHOOK_API_KEY', default='your-secret-key-change-this')
-DJANGO_API_URL = env('DJANGO_API_URL', default='http://localhost:8000')
+DJANGO_API_URL = SITE_URL
 
-# # Email settings
+
+# # Email settings for Zoho Mail
 EMAIL_BACKEND = env('EMAIL_BACKEND')
 EMAIL_HOST = env('EMAIL_HOST')
 EMAIL_PORT = env.int('EMAIL_PORT')
