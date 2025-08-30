@@ -417,6 +417,20 @@
 
 
 {% if not request.user.onboarding_completed %}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const storedStep = localStorage.getItem("onboardingStep");
+    console.log(storedStep);
+    if (storedStep === "profile_completed") {
+        window.location.href = '{% url 'products' %}';
+    };
+});
+        
+
+
+
+
+
 document.addEventListener("DOMContentLoaded", () => {
   const step = localStorage.getItem("onboardingStep");
 

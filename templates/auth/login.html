@@ -196,6 +196,30 @@
                     showTooltip(signupLink, disabledMessage);
                 });
             }
+
+            // Find the success message element
+            const successAlert = document.querySelector('.alert-success');
+
+            // If the success message exists, run your code
+            if (successAlert) {
+                // Save user info in localStorage after first login
+                const firstName = "{{ request.user.first_name|escapejs }}";
+                const userData = {
+                status: "user",
+                first_name: firstName
+                };
+                localStorage.setItem("vibereach_user_data", JSON.stringify(userData));
+
+
+                // onboarding
+                {% if not request.user.onboarding_completed %}
+                const storedStep = localStorage.getItem("onboardingStep");
+                if (!storedStep) {
+                    localStorage.setItem("onboardingStep", "profile_completed");
+                };
+
+                {% endif %}
+            }
         });
     </script>
 </body>
