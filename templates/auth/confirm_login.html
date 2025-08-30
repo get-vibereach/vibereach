@@ -1,0 +1,29 @@
+{% extends 'auth/base_auth.html' %}
+{% load static %}
+
+{% block title %}Confirm Login{% endblock %} 
+
+{% block content %}
+<body class="min-h-screen bg-base-100">
+    <main class="min-h-screen flex flex-col items-center justify-center p-4">
+        <!-- Logo -->
+        <div class="flex items-center mb-6">
+            <img src="/static/vibereach-logo.png" alt="Logo" class="w-12">
+            <span class="ml-3 text-3xl font-bold gradient-logo">VibeReach</span>
+        </div>
+        
+        <div class="card w-full max-w-sm shrink-0 shadow-lg bg-base-100">
+            <form class="card-body" method="post" action="">
+                {% csrf_token %}
+                <h2 class="card-title text-2xl font-bold justify-center mb-4">You're one click away!</h2>
+                <p class="text-center mb-6">Click the button below to securely log in to your account.</p>
+                <div class="form-control mt-6">
+                    <button type="submit" class="btn btn-primary w-full">
+                        Log In to Your Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+</body>
+{% endblock %}

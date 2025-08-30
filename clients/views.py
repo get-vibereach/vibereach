@@ -355,12 +355,14 @@ def login_with_token_view(request, token):
         if login_token.expires_at < timezone.now():
             return render(request, 'auth/404.html', {'message': 'This login link has expired.'}, status=410)
 
-        user = User.objects.get(email=login_token.email)
-        login(request, user)
-        login_token.is_used = True
-        login_token.save()
-
-        return redirect('reset_password')
+        if request.method == 'POST':
+            user = User.objects.get(email=login_token.email)
+            login(request, user)
+            login_token.is_used = True
+            login_token.save()
+            return redirect('reset_password')
+        else:
+            return render(request, 'auth/confirm_login.html', {'token': token})
 
     except LoginToken.DoesNotExist:
         return render(request, 'auth/404.html', {'message': 'Invalid login link.'}, status=404)
