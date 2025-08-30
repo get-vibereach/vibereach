@@ -595,7 +595,8 @@ def launch_campaign(request, pk):
         try:
             # Create/get campaign stats first
             from campaign.services import AnalyticsService
-            CampaignStats.objects.get_or_create(campaign=campaign)
+            campaign_stats, _ = CampaignStats.objects.get_or_create(campaign=campaign)
+            campaign_stats.update_basic_stats()
 
             # Create/get campaign scheduler first
             from campaign.models import Schedule
