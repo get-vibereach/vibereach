@@ -24,6 +24,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy  # Wait for Redis to be healthy
     networks:
       - app-network
       - redis-network
@@ -53,6 +55,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy  # Wait for Redis to be healthy
     networks:
       - app-network
       - redis-network
