@@ -1067,3 +1067,168 @@ def complete_campaign(ctx: inngest.Context):
             "message": str(e),
             "campaign_id": campaign_id if 'campaign_id' in locals() else None
         }
+
+
+# =============================================================================
+# SUBSCRIPTION MANAGEMENT TASKS
+# ============================================================================
+
+@inngest_client.create_function(
+    fn_id="check_subscriptions",
+    trigger=inngest.TriggerCron(cron="0 0 1,16 * *"),  # 1st and 16th of every month at 12 AM UTC
+)
+def check_subscriptions(ctx: inngest.Context):
+    """
+    Checks all subscriptions daily.
+    - Triggers notifications for subscriptions ending soon.
+    - Triggers expiration for subscriptions that have ended.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db.models import Q
+    from clients.models import Subscription
+
+    today = timezone.now().date()
+    
+    # Subscriptions ending soon (active or trial)
+    subscriptions_ending_soon = Subscription.objects.filter(
+        status__in=['active', 'trial']
+    ).filter(
+        Q(trial_end_date__date__range=(today, today + timedelta(days=5))) |
+        Q(current_period_end__date__range=(today, today + timedelta(days=5)))
+    )
+
+    events = []
+    for sub in subscriptions_ending_soon:
+        events.append(inngest.Event(
+            name="subscriptions/notify.ending_soon",
+            data={"subscription_id": sub.id}
+        ))
+
+    # Expired subscriptions
+    expired_subscriptions = Subscription.objects.filter(
+        status__in=['active', 'trial']
+    ).filter(
+        Q(trial_end_date__date__lt=today) |
+        Q(current_period_end__date__lt=today)
+    )
+
+    for sub in expired_subscriptions:
+        events.append(inngest.Event(
+            name="subscriptions/notify.expired",
+            data={"subscription_id": sub.id}
+        ))
+    
+    if events:
+        inngest_client.send_sync(events)
+
+    logger.info(f"Subscription check complete. Found {len(subscriptions_ending_soon)} ending soon, {len(expired_subscriptions)} expired.")
+    return {"status": "complete", "ending_soon": len(subscriptions_ending_soon), "expired": len(expired_subscriptions)}
+
+
+@inngest_client.create_function(
+    fn_id="notify_ending_soon",
+    trigger=inngest.TriggerEvent(event="subscriptions/notify.ending_soon"),
+)
+def notify_ending_soon(ctx: inngest.Context):
+    """
+    Sends a notification that a subscription is about to expire.
+    """
+    from django.utils import timezone
+    from clients.models import Subscription
+    from campaign.system_emails import send_system_subscription_status_email
+
+    subscription_id = ctx.event.data.get("subscription_id")
+    
+    try:
+        sub = Subscription.objects.get(id=subscription_id)
+        
+        end_date = sub.trial_end_date if sub.status == 'trial' else sub.current_period_end
+        if not end_date:
+            return {"status": "error", "message": "No end date found"}
+
+        days_left = (end_date.date() - timezone.now().date()).days
+
+        if 0 <= days_left <= 5:
+            if sub.days_to_expiry_warning_sent == days_left:
+                logger.info(f"Notification for {days_left} days left already sent for sub {sub.id}")
+                return {"status": "skipped", "reason": "already notified for this day"}
+
+            user = sub.subscribed_company.users.filter(is_staff=True).first() or sub.subscribed_company.users.first()
+
+            if user:
+                # This uses a generic template. A more advanced version could pass days_left to the template.
+                send_system_subscription_status_email(user, sub, days_left)
+                
+                sub.days_to_expiry_warning_sent = days_left
+                sub.save(update_fields=['days_to_expiry_warning_sent'])
+                logger.info(f"Sent 'ending soon' notification to {user.email} for sub {sub.id}")
+                return {"status": "success", "user_notified": user.email}
+            else:
+                logger.warning(f"No user found to notify for subscription {sub.id}")
+                return {"status": "error", "message": "No user found"}
+
+    except Subscription.DoesNotExist:
+        logger.error(f"Subscription with ID {subscription_id} not found.")
+        return {"status": "error", "message": "Subscription not found"}
+
+
+@inngest_client.create_function(
+    fn_id="notify_expired",
+    trigger=inngest.TriggerEvent(event="subscriptions/notify.expired"),
+)
+def notify_expired(ctx: inngest.Context):
+    """
+    Handles subscription expiration.
+    - Sets status to 'expired'.
+    - Moves users to 'View Only' group.
+    - Sends an expiration email.
+    """
+    from django.contrib.auth.models import Group
+    from clients.models import Subscription
+    from campaign.system_emails import send_system_subscription_status_email
+
+    subscription_id = ctx.event.data.get("subscription_id")
+
+    try:
+        sub = Subscription.objects.get(id=subscription_id)
+
+        if sub.status == 'expired':
+            logger.info(f"Subscription {sub.id} already expired.")
+            return {"status": "skipped", "reason": "already expired"}
+
+        # Update subscription status
+        if sub.status == 'trial':
+            sub.status = 'trial_expired'
+            sub.save(update_fields=['status'])
+        else:
+            sub.status = 'expired'
+            sub.save(update_fields=['status'])
+
+        # Add users to 'View Only' group
+        try:
+            view_only_group = Group.objects.get(name='View Only')
+            users = sub.subscribed_company.users.all()
+            for user in users:
+                user.groups.add(view_only_group)
+            logger.info(f"Moved {users.count()} users from company {sub.subscribed_company.name} to 'View Only' group.")
+        except Group.DoesNotExist:
+            logger.error("'View Only' group not found. Please run 'manage.py setup_permissions'.")
+            return {"status": "error", "message": "View Only group not found"}
+
+        # Send notification if not already sent
+        if not sub.expiry_notification_sent:
+            user_to_notify = sub.subscribed_company.users.filter(is_staff=True).first() or sub.subscribed_company.users.first()
+            if user_to_notify:
+                send_system_subscription_status_email(user_to_notify, sub)
+                sub.expiry_notification_sent = True
+                sub.save(update_fields=['expiry_notification_sent'])
+                logger.info(f"Sent 'expired' notification to {user_to_notify.email} for sub {sub.id}")
+                return {"status": "success", "user_notified": user_to_notify.email}
+        
+        return {"status": "success", "message": "Subscription expired, no new notification sent."}
+
+    except Subscription.DoesNotExist:
+        logger.error(f"Subscription with ID {subscription_id} not found.")
+        return {"status": "error", "message": "Subscription not found"}
+

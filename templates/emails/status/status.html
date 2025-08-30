@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+    }
+    p { margin-bottom: 16px; font-size: 16px; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <p>Hi {{ first_name }},</p>
+
+  {% if status == "ending_soon" %}
+    <p>This is a friendly reminder that your VibeReach {{ type }} will expire in <strong>{{ days_left }} days</strong>.</p>
+    <p>To avoid any interruption in your service, please renew your {{ type }}.</p>
+  {% elif status == "ended" %}
+    <p>Your VibeReach {{ type }} has expired. Your account is now in view-only mode.</p>
+    <p>To restore full functionality, please renew your {{ type }}.</p>
+  {% endif %}
+
+  <p>Thanks,<br>The VibeReach Team</p>
+</body>
+</html>

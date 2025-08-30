@@ -1,0 +1,14 @@
+Hi {{ first_name }},
+
+{% if status == "ending_soon" %}
+This is a friendly reminder that your VibeReach {{ type }} will expire in {{ days_left }} days.
+
+To avoid any interruption in your service, please renew your {{ type }}.
+{% elif status == "ended" %}
+Your VibeReach {{ type }} has expired. Your account is now in view-only mode.
+
+To restore full functionality, please renew your {{ type }}.
+{% endif %}
+
+Thanks,
+The VibeReach Team
