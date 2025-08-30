@@ -1,7 +1,10 @@
+from datetime import timedelta
+from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from urllib.parse import urlparse, urlunparse
 from django.core import validators
+from django.utils.text import slugify
 
 
 class SubscribedCompany(models.Model):
@@ -19,14 +22,40 @@ class SubscribedCompany(models.Model):
 
 
 class Plan(models.Model):
+    BILLING_CYCLE_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('3-month', '3 Months'),
+        ('6-month', '6 Months'),
+        ('annual', 'Annual'),
+    ]
+
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    billing_cycle = models.CharField(max_length=20, choices=[
-        ('monthly', 'Monthly'),
-        ('annual', 'Annual')
-    ])
-    
+    billing_cycle = models.CharField(max_length=20, choices=BILLING_CYCLE_CHOICES)
+    duration_days = models.PositiveIntegerField(
+        default=30,
+        help_text="Number of days this plan lasts (e.g., 30 for monthly, 365 for annual)."
+    )
+
+    def save(self, *args, **kwargs):
+        # Automatically generate slug
+        self.slug = slugify(self.name)
+
+        # Set duration_days based on billing cycle
+        if self.billing_cycle == 'monthly':
+            self.duration_days = 30
+        elif self.billing_cycle == '3-month':
+            self.duration_days = 90
+        elif self.billing_cycle == '6-month':
+            self.duration_days = 180
+        elif self.billing_cycle == 'annual':
+            self.duration_days = 365
+        else:
+            self.duration_days = 30
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.name} (${self.price}/{self.billing_cycle})"
 
@@ -43,14 +72,13 @@ class Subscription(models.Model):
         ('expired', 'Expired'),
     ]
     
-    subscribed_company = models.ForeignKey(SubscribedCompany, on_delete=models.CASCADE, related_name='subscriptions')
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name='subscriptions')
+    subscribed_company = models.ForeignKey('SubscribedCompany', on_delete=models.CASCADE, related_name='subscriptions')
+    plan = models.ForeignKey('Plan', on_delete=models.PROTECT, related_name='subscriptions')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='trial')
     start_date = models.DateTimeField(auto_now_add=True)
     trial_end_date = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
     canceled_at = models.DateTimeField(null=True, blank=True)
-    
     
     # Billing information
     billing_email = models.EmailField()
@@ -59,12 +87,25 @@ class Subscription(models.Model):
     # Notification tracking
     days_to_expiry_warning_sent = models.IntegerField(null=True, blank=True, help_text="Tracks which day's warning email has been sent (e.g., 5, 4, 3, 2, 1). Null if none sent.")
     expiry_notification_sent = models.BooleanField(default=False)
-    
+
+    def save(self, *args, **kwargs):
+        # Update trial_end_date or current_period_end based on status
+        if self.status == 'trial' and not self.trial_end_date:
+            self.trial_end_date = self.start_date + timedelta(days=self.plan.duration_days)
+
+        elif self.status == 'active' and not self.current_period_end:
+            self.current_period_end = self.start_date + timedelta(days=self.plan.duration_days)
+
+        elif self.status == 'canceled':
+            self.canceled_at = timezone.now()
+
+        elif self.status in ['trial_expired', 'expired']:
+            self.current_period_end = None
+
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return f"{self.subscribed_company.name}-{self.plan.name}-{self.id}"
-
-
 
 
 
