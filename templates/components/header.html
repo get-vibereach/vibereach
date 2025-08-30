@@ -6,7 +6,7 @@
 
     {% if show_renewal_notice %}
     <div class="navbar-center hidden lg:flex">
-        <div class="text-warning text-center p-2">
+        <div class="bg-warning/50 text-gray-800 text-center p-2 pr-4 pl-4 backdrop-blur-md rounded-box ml-0 mr-2 sm:mx-4 lg:mx-auto max-w-2xl ">
             Friendly Reminder: Your {{ subscription_type }} will end
             {% if subscription_days_left == 0 %}
                 today.
