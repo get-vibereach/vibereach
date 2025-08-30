@@ -589,12 +589,13 @@
             ModalSystem.hideLoading();
             
             // This logs the actual error object to the console for debugging.
+            console.error('Launch error getrrortmsg fun:', getErrorMessage(error));
             console.error('Launch error:', error); 
             
             // This now shows a proper, human-readable message to the user.
             ModalSystem.error({
                 title: 'Launch Error',
-                message: getErrorMessage(error)
+                message: 'Error launching campaign, please contact support'
             });
         });
     }
