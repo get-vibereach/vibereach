@@ -684,6 +684,19 @@ class CampaignStats(models.Model):
         """Percentage of leads that converted (won)"""
         return round(self.conversion_total_value, 2) if self.conversions_count else 0
 
+    def update_basic_stats(self):
+        """Update only the basic stats we're concerned with"""
+        campaign_leads = self.campaign.campaignlead_set.all()
+        self.total_leads = campaign_leads.count()
+
+        # Update only the sequence_started_count and opened_count
+        self.sequence_started_count = campaign_leads.filter(
+            messageassignment__sent_at__isnull=False
+        ).distinct().count()
+
+        self.save()
+
+
     def update_from_campaign(self):
         """Update stats based on campaign data using MessageAssignment tracking."""
         campaign_leads = self.campaign.campaignlead_set.all()
