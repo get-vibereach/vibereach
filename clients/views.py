@@ -35,7 +35,7 @@ def reset_password_view(request):
             # Update the session hash to prevent the user from being logged out
             update_session_auth_hash(request, request.user)
             messages.success(request, 'Your password has been set successfully.')
-            return redirect('overall_dashboard')
+            return redirect('login')
         else:
             messages.error(request, 'Passwords do not match.')
             return redirect('reset_password')
