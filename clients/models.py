@@ -5,6 +5,23 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from urllib.parse import urlparse, urlunparse
 from django.core import validators
 from django.utils.text import slugify
+import uuid
+
+
+class SignupToken(models.Model):
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    email = models.EmailField(blank=True, null=True)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return str(self.token)
 
 
 class SubscribedCompany(models.Model):

@@ -1,8 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from .models import Plan, Subscription, BillingHistory, CustomUser, SubscribedCompany, Product, EmailAccount
+from .models import Plan, Subscription, BillingHistory, CustomUser, SubscribedCompany, Product, EmailAccount, SignupToken
 from django.utils.html import format_html
+
+
+@admin.register(SignupToken)
+class SignupTokenAdmin(admin.ModelAdmin):
+    list_display = ('token', 'email', 'is_used', 'created_at', 'expires_at')
+    readonly_fields = ('token', 'created_at', 'expires_at')
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -116,5 +122,3 @@ class EmailAccountAdmin(admin.ModelAdmin):
     list_display = ('id', 'subscribed_company', 'email', 'connection_type', 'status', 'emails_sent', 'daily_limit')
     search_fields = ('email', 'subscribed_company__name', )
     list_filter = ('subscribed_company', 'connection_type', 'status',)
-    
-    

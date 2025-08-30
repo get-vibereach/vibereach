@@ -566,7 +566,7 @@
       
       try {
         // Update user info
-        const userResponse = await fetch('/auth/api/user/update-info/', {
+        const userResponse = await fetch('/accounts/api/user/update-info/', {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -581,7 +581,7 @@
         }
         
         // Update company info
-        const companyResponse = await fetch('/auth/api/company/update-info/', {
+        const companyResponse = await fetch('/accounts/api/company/update-info/', {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',

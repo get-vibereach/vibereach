@@ -172,3 +172,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["first_name", "last_name", "email", "position", "phone_number", "linkedin_profile", "onboarding_completed"]
+
+class TrialRegistrationSerializer(serializers.Serializer):
+    user = UserUpdateSerializer()
+    company = CompanyRegistrationSerializer()
+    token = serializers.UUIDField()

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib import messages
 from django.urls import reverse
@@ -7,11 +7,33 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from api.serializers import (
-    LoginSerializer, CompanyRegistrationSerializer, UserRegistrationSerializer, UserUpdateSerializer
+    LoginSerializer, CompanyRegistrationSerializer, UserRegistrationSerializer, UserUpdateSerializer, TrialRegistrationSerializer
 )
-from .models import SubscribedCompany
+from .models import SubscribedCompany, CustomUser, SignupToken
 from django.contrib.auth.decorators import login_not_required
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils import timezone
+
+@login_not_required
+def trial_signup_view(request, token):
+    try:
+        signup_token = get_object_or_404(SignupToken, token=token)
+        
+        if signup_token.is_used:
+            # Token has already been used
+            return render(request, 'auth/404.html', {'message': 'This signup link has already been used.'}, status=410) # 410 Gone
+            
+        if signup_token.expires_at < timezone.now():
+            # Token has expired
+            return render(request, 'auth/404.html', {'message': 'This signup link has expired.'}, status=410)
+
+        # Token is valid, render the signup form
+        return render(request, 'auth/trial_signup.html', {'token': token, 'email': signup_token.email})
+
+    except SignupToken.DoesNotExist:
+        return render(request, 'auth/404.html', {'message': 'Invalid signup link.'}, status=404)
+
+
 
 
 def custom_404_view(request, exception):
@@ -192,13 +214,64 @@ def api_user_registration(request):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_trial_registration(request):
+    serializer = TrialRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        token = serializer.validated_data['token']
+        
+        try:
+            signup_token = SignupToken.objects.get(token=token)
 
+            if signup_token.is_used:
+                return Response({'success': False, 'message': 'This signup link has already been used.'}, status=status.HTTP_410_GONE)
+            
+            if signup_token.expires_at < timezone.now():
+                return Response({'success': False, 'message': 'This signup link has expired.'}, status=status.HTTP_410_GONE)
 
+            user_data = serializer.validated_data['user']
+            company_data = serializer.validated_data['company']
 
+            # Check for existing user
+            if CustomUser.objects.filter(email=user_data['email']).exists():
+                return Response({
+                    'success': False,
+                    'message': 'A user with this email already exists.'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
+            # Create company
+            company = SubscribedCompany.objects.create(**company_data)
 
+            # Create user
+            user = CustomUser.objects.create(
+                subscribed_company=company,
+                username=user_data['email'], # Use email as username
+                **user_data
+            )
+            user.set_unusable_password()
+            user.save()
 
+            # Mark token as used
+            signup_token.is_used = True
+            signup_token.save()
 
+            # Log the user in; notice he doesnot has password!
+            # login(request, user)
+
+            return Response({
+                'success': True,
+                'message': 'Account created successfully! Welcome to Instantly.',
+                'redirect_url': reverse('overall_dashboard')
+            }, status=status.HTTP_201_CREATED)
+
+        except SignupToken.DoesNotExist:
+            return Response({'success': False, 'message': 'Invalid signup token.'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({
+        'success': False,
+        'errors': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 
 
