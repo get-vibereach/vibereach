@@ -19,9 +19,16 @@ class CustomLoginRequiredMiddleware(LoginRequiredMiddleware):
 class ViewOnlyMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        self.view_only_exempt_urls = [re.compile(url) for url in getattr(settings, "VIEW_ONLY_EXEMPT_URLS", [])]
 
     def __call__(self, request):
         if request.user.is_authenticated and request.user.groups.filter(name='View Only').exists():
+
+            for url in self.view_only_exempt_urls:
+                if re.match(url, request.path):
+                    # Skip the 'View Only' check for these URLs
+                    return self.get_response(request)
+
             if request.method not in ['GET', 'HEAD', 'OPTIONS']:
                 if request.path.startswith('/api/'):
                     return JsonResponse({'error': 'Your subscription has expired. You are in view-only mode.'}, status=403)
