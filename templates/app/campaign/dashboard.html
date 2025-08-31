@@ -471,6 +471,11 @@
             const ctx = document.getElementById('mainAnalyticsChart');
             if (!ctx || !analyticsData) return;
 
+            // Destroy existing chart to ensure a clean redraw
+            if (mainAnalyticsChart) {
+                mainAnalyticsChart.destroy();
+            }
+
             // Sort datasets by maximum value (lowest to highest for better visibility)
             const datasets = [...analyticsData.chart_data.datasets];
             datasets.sort((a, b) => {
@@ -484,17 +489,11 @@
                 datasets: datasets
             };
 
-            if (mainAnalyticsChart) {
-                mainAnalyticsChart.data = chartData;
-                mainAnalyticsChart.options = chartOptions(currentTheme);
-                mainAnalyticsChart.update();
-            } else {
-                mainAnalyticsChart = new Chart(ctx.getContext('2d'), {
-                    type: 'line',
-                    data: chartData,
-                    options: chartOptions(currentTheme)
-                });
-            }
+            mainAnalyticsChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: chartData,
+                options: chartOptions(currentTheme)
+            });
         };
 
         // Load analytics data and update chart
