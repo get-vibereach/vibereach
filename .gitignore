@@ -72,3 +72,5 @@ clients/management/commands/initialize_data.py
 deploy-sensitive.sh
 deploy.sh
 action.sh
+
+templates/ar
