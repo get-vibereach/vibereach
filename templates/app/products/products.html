@@ -203,22 +203,20 @@
             </div>
             <div>
                 <label class="label">
-                    <span class="label-text">Description *</span>
+                    <span class="label-text">Description</span>
                 </label>
                 <textarea class="textarea textarea-bordered w-full bg-white h-32" 
                           id="product-description-add" 
-                          placeholder="Detailed description of the product..." 
-                          required></textarea>
+                          placeholder="Detailed description of the product..."></textarea>
             </div>
             <div>
                 <label class="label">
-                    <span class="label-text">Landing Page URL *</span>
+                    <span class="label-text">Landing Page URL</span>
                 </label>
                 <input type="url" 
                        placeholder="https://yourdomain.com/product" 
                        class="input input-bordered w-full bg-white" 
-                       id="product-url-add" 
-                       required>
+                       id="product-url-add">
             </div>
         </form>
         <div class="modal-action">
@@ -393,15 +391,17 @@ function submitProductForm(CompanyID) {
         ModalSystem.close('product-loading-modal');
         //ModalSystem.open('product-success-modal');
         ModalSystem.toast('Product saved successfully!', 'success');
+        
 
         {% if not request.user.onboarding_completed %}
         localStorage.setItem("onboardingStep", "created_a_product");
         // Call the globally defined function
         if (typeof showProductCreationSuccessDriver === 'function') {
             showProductCreationSuccessDriver();
-        }
+        };
         {% endif %}
         
+        window.location.reload();
     })
     .catch(err => {
         alert("Save failed");
