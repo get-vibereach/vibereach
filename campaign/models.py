@@ -643,6 +643,11 @@ class CampaignStats(models.Model):
     replied_count = models.IntegerField(default=0)
     opportunities_count = models.IntegerField(default=0)
     opportunity_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # i have mad this for the overall analaytics card since the aggrigate not working for the properity
+    # see this for details campaign/analytics_views.py in fun overall_analytics_data at overall_stats
+    opportunities_total_value_stats = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     conversions_count = models.IntegerField(default=0)
     conversion_total_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
@@ -727,6 +732,7 @@ class CampaignStats(models.Model):
         self.opportunities_count = opportunities.count()
         # This seems to be a slight logic error in the original code, but preserving it as requested
         self.opportunities_total_value = self.opportunities_count * self.opportunity_value
+        self.opportunities_total_value_stats = self.opportunities_count * self.opportunity_value
 
         # 6. Conversions: leads that won (converted) (UNCHANGED)
         conversions = campaign_leads.filter(opportunity_status='won')
