@@ -321,17 +321,16 @@
             const ctx = document.getElementById('mainAnalyticsChart');
             if (!ctx) return;
 
+            // Destroy existing chart to ensure a clean redraw
             if (mainAnalyticsChart) {
-                mainAnalyticsChart.data = chartData;
-                mainAnalyticsChart.options = chartOptions(currentTheme);
-                mainAnalyticsChart.update();
-            } else {
-                mainAnalyticsChart = new Chart(ctx.getContext('2d'), {
-                    type: 'bar',
-                    data: chartData,
-                    options: chartOptions(currentTheme)
-                });
+                mainAnalyticsChart.destroy();
             }
+
+            mainAnalyticsChart = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: chartData,
+                options: chartOptions(currentTheme)
+            });
         };
 
         // Load and display analytics data
