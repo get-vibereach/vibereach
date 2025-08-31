@@ -370,13 +370,17 @@ class LeadRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 class BulkLeadCreateView(APIView):
     def post(self, request, *args, **kwargs):
         data = request.data
+        logger.info(f"Bulk lead create request received. Payload size: {len(data) if isinstance(data, list) else 'N/A'}")
+        logger.debug(f"BulkLeadCreateView received data: {data}")
 
         if not isinstance(data, list):
+            logger.error("BulkLeadCreateView error: request data is not a list")
             return Response({'error': 'Expected a list of leads'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate all objects
         serializer = LeadSerializer(data=data, many=True)
         if not serializer.is_valid():
+            logger.error(f"BulkLeadCreateView serializer errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         validated_data = serializer.validated_data

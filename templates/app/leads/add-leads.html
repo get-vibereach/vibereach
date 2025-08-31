@@ -26,8 +26,7 @@
                 </div>
                 <!-- Options -->
                 <div id="add-leads-options-driver" class="space-y-3">
-                    <button id="individual-add-lead-btn" class="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 flex items-center gap-3" 
-                            onclick="showIndividualForm()">
+                    <button id="individual-add-lead-btn" class="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 flex items-center gap-3">
                     <div class="w-10 h-10 bg-white rounded-lg border border-gray-200 flex items-center justify-center">
                         <i class="fa-solid fa-user-plus text-red-600 text-lg"></i>
                     </div>
@@ -36,8 +35,7 @@
                         <div class="text-sm text-gray-500">using a form</div>
                     </div>
                     </button>
-                    <button id="bulk-add-leads-btn" class="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 flex items-center gap-3"
-                            onclick="showBulkForm()">
+                    <button id="bulk-add-leads-btn" class="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 flex items-center gap-3">
                     <div class="w-10 h-10 bg-white rounded-lg border border-gray-200 flex items-center justify-center">
                         <i class="fa-solid fa-file-csv text-success text-lg"></i>
                     </div>
@@ -406,6 +404,12 @@
                                                     <strong>lead_type: (Required)</strong> <span class="text-gray-500">(Choices: cold, warm, hot, customer, other)</span>
                                                 </div>
                                             </div>
+                                            <div class="flex items-start gap-2">
+                                                <span class="text-warning">•</span>
+                                                <div id="lead-type-required-driver">
+                                                    <strong>tags</strong> <span class="text-gray-500">(make sure to seperate them with a space; comma "," is not accepted)</span>  
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="divider"></div>
@@ -468,8 +472,9 @@
                                     <span class="text-gray-600"> leads</span>
                                 </div>
                                 <button class="upload-btn flex items-center justify-center mx-auto btn btn-primary text-gray-100 hidden" id="submitBulkBtn" disabled>
-                                    UPLOAD ALL
-                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <span class="upload-text">UPLOAD ALL</span>
+                                    <span class="loading loading-spinner loading-sm hidden ml-2"></span>
+                                    <svg class="upload-icon w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
                                     </svg>
                                 </button>
@@ -523,6 +528,8 @@
   
   // Initialize form
   document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('individual-add-lead-btn').addEventListener('click', showIndividualForm);
+    document.getElementById('bulk-add-leads-btn').addEventListener('click', showBulkForm);
     updateNavigation();
   });
   
@@ -920,11 +927,19 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function normalizeURL(url) {
-    if (!url) return '';
-    if (!/^https?:\/\//i.test(url)) {
-      return 'https://' + url;
+    if (!url) {
+      return '';
     }
-    return url;
+
+    // Remove whitespace and convert to lowercase
+    let cleanedUrl = url.trim().toLowerCase();
+
+    // Prepend 'https://' if no protocol is present
+    if (!/^https?:\/\//i.test(cleanedUrl)) {
+      cleanedUrl = 'https://' + cleanedUrl;
+    }
+
+    return cleanedUrl;
   }
 
   function showValidationSuccess(data) {
@@ -986,20 +1001,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up submit button
     submitBulkBtn.onclick = function() {
-      const CompanyID = window.CompanyID;
-      const ListID = window.ListID;
+      const submitBulkBtn = document.getElementById('submitBulkBtn');
       
       // Append these fields to each row
       const enrichedData = data.map(row => ({
         ...row,
         lead_list: ListID,
         subscribed_company: CompanyID,
+        phone_number: row.phone_number.substring(0, 20), // Truncate phone number
         linkedin_profile: normalizeURL(row.linkedin_profile),
         company_website: normalizeURL(row.company_website),
         campany_linkedin_page: normalizeURL(row.campany_linkedin_page)
       }));
       
-      ModalSystem.toast('Submitting leads...', 'info');
+      // Show loading state
+      submitBulkBtn.disabled = true;
+      submitBulkBtn.querySelector('.upload-text').classList.add('hidden');
+      submitBulkBtn.querySelector('.upload-icon').classList.add('hidden');
+      submitBulkBtn.querySelector('.loading').classList.remove('hidden');
       
       fetch('/api/leads/bulk-create/', {
         method: 'POST',
@@ -1052,12 +1071,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 1500);
       })
       .catch(error => {
-        console.error('Upload failed:', error);
-        let message = '❌ Failed to upload leads.';
-        if (error && typeof error === 'object') {
-          message += ' Check your CSV format.';
+        // Hide loading state
+        submitBulkBtn.disabled = false;
+        submitBulkBtn.querySelector('.upload-text').classList.remove('hidden');
+        submitBulkBtn.querySelector('.upload-icon').classList.remove('hidden');
+        submitBulkBtn.querySelector('.loading').classList.add('hidden');
+
+        let errorTitle = 'Upload Failed';
+        let errorMessage = '<p>There was a problem with your upload. Please correct the errors and try again.</p>';
+
+        if (Array.isArray(error)) { // This is a DRF `many=True` validation error
+            errorTitle = 'Validation Errors Found in Your CSV';
+            let errorList = '<ul class="list-disc pl-5 mt-2 max-h-60 overflow-y-auto">';
+            let errorCount = 0;
+            error.forEach((rowError, index) => {
+                if (Object.keys(rowError).length > 0 && errorCount < 10) {
+                    errorCount++;
+                    const field = Object.keys(rowError)[0];
+                    const message = rowError[field][0];
+                    errorList += `<li><strong>Row ${index + 2}:</strong> Field "<em>${field}</em>" - ${message}</li>`;
+                }
+            });
+            if(errorCount === 0 && error.length > 0) { 
+                const nonFieldErrors = error.find(e => e.non_field_errors);
+                if (nonFieldErrors) {
+                    errorList += `<li><strong>Error:</strong> ${nonFieldErrors.non_field_errors[0]}</li>`;
+                } else if (typeof error[0] === 'string') {
+                    errorList += `<li><strong>Error:</strong> ${error[0]}</li>`;
+                }
+            }
+            errorList += '</ul>';
+            if (error.length > 10 && errorCount > 0) {
+                errorList += `<p class="mt-2">... and ${error.length - 10} more errors.</p>`;
+            }
+            errorMessage += errorList;
+        } else if (error.error) {
+            errorMessage += `<p class="mt-2 text-error">${error.error}</p>`;
+        } else if (typeof error === 'object') {
+            let errorList = '<ul class="list-disc pl-5 mt-2 max-h-60 overflow-y-auto">';
+            for (const key in error) {
+                errorList += `<li><strong>${key}:</strong> ${error[key]}</li>`;
+            }
+            errorList += '</ul>';
+            errorMessage += errorList;
         }
-        ModalSystem.toast(message, 'error');
+
+
+        ModalSystem.show({
+            title: errorTitle,
+            content: errorMessage,
+            confirmText: 'OK',
+            confirmClass: 'btn-primary'
+        });
       });
     };
   }
