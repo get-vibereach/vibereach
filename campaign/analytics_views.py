@@ -275,7 +275,7 @@ def overall_analytics_data(request):
         clicked_count=Sum('clicked_count'),
         replied_count=Sum('replied_count'),
         opportunities_count=Sum('opportunities_count'),
-        opportunities_total_value=Sum('opportunity_value'),
+        opportunities_total_value=Sum('opportunities_total_value_stats'),
         conversions_count=Sum('conversions_count'),
         conversions_total_value=Sum('conversion_total_value')
     )
