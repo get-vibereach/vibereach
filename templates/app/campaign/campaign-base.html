@@ -127,7 +127,13 @@
 
     </div>
 <script>
-
+    document.addEventListener("DOMContentLoaded", () => {
+        if (window.location.pathname.includes("dashboard")) {
+            {% if campaign_status == 'draft' %}
+            window.location.href = `{% url 'campaign_leads' campaign_id %}`;
+            {% endif %}
+        };
+    });
     // Your provided delete confirmation function
     function confirmDeleteCampaign(id) {
         // Assuming ModalSystem is defined elsewhere in your project
