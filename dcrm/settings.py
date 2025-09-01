@@ -228,6 +228,13 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Add logging configuration
+# Ensure logs directory exists
+import os
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+    
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -242,6 +249,13 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', f'django_{env("APP_COLOR")}.log'),
+            'maxBytes': 1024*1024*5, # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'campaign': {
@@ -249,12 +263,22 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
     'root': {
         'handlers': ['console'],
         'level': 'INFO',
     },
 }
+
+if not DEBUG:
+    LOGGING['root']['handlers'].append('file')
+    LOGGING['loggers']['django']['handlers'].append('file')
+    LOGGING['loggers']['campaign']['handlers'].append('file')
 
 SITE_URL = env('SITE_URL', default='http://localhost:8000')
 
