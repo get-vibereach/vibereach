@@ -681,6 +681,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     driverObj.drive();
 
+    document.querySelector("#schedule-save-btn-driver").addEventListener("click", () => {
+        driverObj.moveNext();
+    });
+
     document.querySelector("#campaign-options-tab").addEventListener("click", () => {
       localStorage.setItem("onboardingStep", "created_campaign_schedule");  
       driverObj.destroy();  // hides the overlay
