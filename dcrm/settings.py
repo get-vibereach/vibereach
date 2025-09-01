@@ -62,6 +62,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'dcrm.middleware.CustomLoginRequiredMiddleware',
+    'dcrm.middleware.RequestMiddleware',
     'dcrm.middleware.ViewOnlyMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -235,50 +236,72 @@ if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 
     
+# Add logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            # Update the format to include user information
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message} [User: {user_username} ({user_email})]',
             'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message} [User: {user_username}]',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'user_filter': {
+            '()': 'dcrm.logging_filters.UserFilter',
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'filters': ['user_filter'],
         },
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', f'django_{env("APP_COLOR")}.log'),
-            'maxBytes': 1024*1024*5, # 5 MB
-            'backupCount': 5,
+            'maxBytes': 1024*1024*20,  # Increased to 20MB
+            'backupCount': 10,        # Increased to keep more backups
             'formatter': 'verbose',
+            'filters': ['user_filter'],
         },
     },
     'loggers': {
         'campaign': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': True,
         },
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'file'],
         'level': 'INFO',
     },
 }
-
 if not DEBUG:
-    LOGGING['root']['handlers'].append('file')
-    LOGGING['loggers']['django']['handlers'].append('file')
-    LOGGING['loggers']['campaign']['handlers'].append('file')
+    # In production, we might want to add additional handlers or adjust levels
+    pass
+
 
 SITE_URL = env('SITE_URL', default='http://localhost:8000')
 

@@ -36,3 +36,24 @@ class ViewOnlyMiddleware:
 
         response = self.get_response(request)
         return response
+
+
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+class RequestMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Add request to logger context
+        logger.info("Request started", extra={'request': request})
+        
+        response = self.get_response(request)
+        
+        # Log request completion
+        logger.info("Request completed", extra={'request': request})
+        
+        return response
