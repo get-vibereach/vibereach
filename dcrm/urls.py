@@ -4,7 +4,7 @@ from django.shortcuts import redirect, render
 
 from scheduler.views import scheduler_inngest_view_path
 from campaign.views import account_settings_view
-from clients.views import home_view
+from .views import home_view, home_ar_view
 
 from django.contrib.auth.decorators import login_not_required
 
@@ -29,9 +29,12 @@ handler404 = 'clients.views.custom_404_view'
 
 
 urlpatterns = [
-    path('', home_view, name='home'),
+    path('', home_ar_view, name='home_ar'),
+    path('en/', home_view, name='home'),
+
     re_path(r'^admin/', include('admin_honeypot.urls')),
     path('fdudminramo/', admin.site.urls),
+    
     path('campaign/', include('campaign.urls')),
     path('api/', include('api.urls')),
     path('accounts/', include('clients.urls')),

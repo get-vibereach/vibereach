@@ -65,10 +65,6 @@ def trial_signup_view(request, token):
 def custom_404_view(request, exception):
     return render(request, 'auth/404.html', status=404)
 
-@login_not_required
-def home_view(request):
-    """Feedback and feature requests page"""
-    return render(request, "home/landing.html")
 
 
 # Template Views
