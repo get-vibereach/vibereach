@@ -26,9 +26,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy  # Wait for Redis to be healthy
     networks:
       - app-network
-
+      - redis-network
 
   web_green:
     build: .
@@ -57,10 +59,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy  # Wait for Redis to be healthy
     networks:
       - app-network
-
-
+      - redis-network
 
   db:
     image: postgres:15
@@ -79,12 +82,26 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - redis-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
 volumes:
   static_volume:
   pgdata:
-  web_blue_logs: {}
-  web_green_logs: {}
+  redis_data:
 
 networks:
   app-network:
+    driver: bridge
+  redis-network:
     driver: bridge
