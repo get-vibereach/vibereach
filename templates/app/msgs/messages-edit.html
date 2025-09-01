@@ -1747,7 +1747,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     element: "#msg-ps-form-driver",
                     popover: {
                         title: "Add a P.S. (Optional)",
-                        description: "A P.S. is a great way to add a final, high-impact point.",
+                        description: "A P.S. adds a strong final point. Use this format: [text](url) for clickable, trackable links—e.g., [Our Website](https://gatara.org).",
                         position: "left"
                     }
                 },
@@ -1822,6 +1822,9 @@ document.addEventListener("DOMContentLoaded", () => {
             ]
         });
         driverObj.drive();
+        document.querySelector("#save-btn-driver").addEventListener("click", () => {
+            driverObj.moveNext();
+        });
         // This part seems to target a button that doesn't exist.
         document.querySelector("#campaigns-tab").addEventListener("click", () => {
             localStorage.setItem("onboardingStep", "created_first_msg");

@@ -1,7 +1,5 @@
 {% extends "base-app.html" %}
-
 {% block title %}Messages{% endblock %}
-
 {% block content %}
 <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 p-6">
     <!-- Header -->
@@ -19,7 +17,6 @@
             </div>
         </div>
     </div>
-
     <!-- <div class="stats shadow mb-6  min-h-[140px]">
         <div class="stat">
             <div class="stat-figure text-secondary">
@@ -29,7 +26,6 @@
             <div class="stat-value">{{most_opened.open_rate}}%</div>
             <div class="stat-desc">{{most_opened.subject}}</div>
         </div>
-
         <div class="stat">
             <div class="stat-figure text-secondary">
             <i class="fa-solid fa-mouse-pointer text-green-600 text-3xl"></i>
@@ -38,7 +34,6 @@
             <div class="stat-value">{{most_clicked.ctr}}%</div>
             <div class="stat-desc">{{most_clicked.subject}}</div>
         </div>
-
         <div class="stat">
             <div class="stat-figure text-secondary">
             <i class="fa-solid fa-star text-purple-600 text-3xl"></i>
@@ -59,7 +54,6 @@
         
     </div> -->
      
-
 
     <!-- Filters and Search -->
     <div class="mb-6 bg-white rounded-lg p-4 shadow-sm border border-gray-200">
@@ -89,7 +83,6 @@
             </div>
         </div>
     </div>
-
     <!-- Messages Table -->
     <div class="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
@@ -112,7 +105,8 @@
                         data-performance="{{ message.performance }}"
                         data-open-rate="{{ message.open_rate }}"
                         data-click-rate="{{ message.click_rate }}"
-                        data-name="{{ message.subject|lower }}">
+                        data-name="{{ message.subject|lower }}"
+                        data-intro="{{ message.intro|lower }}">
                         <td>
                             <div class="flex items-center gap-3">
                                 <div class="w-2 h-2 
@@ -149,9 +143,6 @@
                         </td>
                         <td>
                             <div class="flex items-center gap-2">
-                                <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); duplicateMessage({{ message.id }})" title="Duplicate">
-                                    <i class="fa-solid fa-copy"></i>
-                                </button>
                                 <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); editMessage({{ message.id }})" title="Preview">
                                     <i class="fa-regular fa-eye"></i>
                                 </button>
@@ -187,26 +178,24 @@
         </div>
     </div>
 </div>
-
 <script>
 // Message filtering and sorting functionality
 function filterMessages() {
     const searchTerm = document.getElementById('search-messages').value.toLowerCase();
     const productFilter = document.getElementById('filter-product').value.toLowerCase();
-    const sortFilter = document.getElementById('filter-sort').value;
     
     const rows = document.querySelectorAll('.message-row');
     let visibleCount = 0;
     
     // First filter the rows
     rows.forEach(row => {
-        const messageText = row.textContent.toLowerCase();
+        const subject = row.getAttribute('data-name').toLowerCase();
+        const intro = row.getAttribute('data-intro').toLowerCase();
         const product = row.getAttribute('data-product').toLowerCase();
-        const name = row.getAttribute('data-name').toLowerCase();
         
         const matchesSearch = searchTerm === '' || 
-                             messageText.includes(searchTerm) || 
-                             name.includes(searchTerm);
+                             subject.includes(searchTerm) || 
+                             intro.includes(searchTerm);
         const matchesProduct = productFilter === '' || product === productFilter;
         
         if (matchesSearch && matchesProduct) {
@@ -217,11 +206,6 @@ function filterMessages() {
         }
     });
     
-    // Then sort if a sort option is selected
-    if (sortFilter) {
-        sortTable(sortFilter);
-    }
-    
     // Update empty state
     const noMessagesRow = document.getElementById('no-messages-row');
     if (visibleCount === 0 && rows.length > 0) {
@@ -231,49 +215,12 @@ function filterMessages() {
     }
     
     // Update counter
-    document.getElementById('message-count').textContent = `${visibleCount} messages`;
-}
-
-function sortTable(sortBy) {
-    const tbody = document.getElementById('messages-table-body');
-    // Get all visible rows (not hidden by filtering)
-    const rows = Array.from(tbody.querySelectorAll('.message-row')).filter(row => {
-        return window.getComputedStyle(row).display !== 'none';
-    });
-    
-    rows.sort((a, b) => {
-        let aValue, bValue;
-        
-        switch(sortBy) {
-            case 'name':
-                aValue = a.getAttribute('data-name');
-                bValue = b.getAttribute('data-name');
-                return aValue.localeCompare(bValue);
-            case 'performance':
-                aValue = parseFloat(a.getAttribute('data-performance'));
-                bValue = parseFloat(b.getAttribute('data-performance'));
-                return bValue - aValue; // Descending order
-            case 'open-rate':
-                aValue = parseFloat(a.getAttribute('data-open-rate'));
-                bValue = parseFloat(b.getAttribute('data-open-rate'));
-                return bValue - aValue;
-            case 'click-rate':
-                aValue = parseFloat(a.getAttribute('data-click-rate'));
-                bValue = parseFloat(b.getAttribute('data-click-rate'));
-                return bValue - aValue;
-            default:
-                return 0;
-        }
-    });
-    
-    // Re-append sorted rows
-    rows.forEach(row => tbody.appendChild(row));
+    document.getElementById('message-count').textContent = visibleCount;
 }
 
 function clearMessageFilters() {
     document.getElementById('search-messages').value = '';
     document.getElementById('filter-product').value = '';
-    document.getElementById('filter-sort').value = '';
     filterMessages();
 }
 
@@ -317,7 +264,6 @@ function confirmDeleteMessage(id) {
                 }
                 const row = document.querySelector(`tr[onclick="editMessage(${id})"]`);
                 if (row) row.remove();
-
                 counter= document.getElementById("message-count")
                 counter.innerHTML= counter.innerHTML - 1;
                 
@@ -333,15 +279,11 @@ function confirmDeleteMessage(id) {
     });
 }
 
-
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners for filters
     document.getElementById('search-messages').addEventListener('input', filterMessages);
     document.getElementById('filter-product').addEventListener('change', filterMessages);
-    document.getElementById('filter-sort').addEventListener('change', function() {
-        filterMessages(); // This will trigger sorting too
-    });
     
     // Hide empty state if we have messages
     const noMessagesRow = document.getElementById('no-messages-row');
@@ -350,13 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-
-
-
-
-
 {% if not request.user.onboarding_completed %}
-
 document.addEventListener("DOMContentLoaded", () => {
     const step = localStorage.getItem("onboardingStep");
     if (step === "imported_first_leads") {
@@ -386,8 +322,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
-
 {% endif %}
-
 </script>
 {% endblock %}

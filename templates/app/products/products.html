@@ -45,13 +45,12 @@
                         <th class="text-left font-semibold text-gray-900">Description</th>
                         <th class="text-left font-semibold text-gray-900">Landing Page URL</th>
                         <th class="text-left font-semibold text-gray-900">Campaigns</th>
-                        <th class="text-left font-semibold text-gray-900">Actions</th>
+                        <th class="text-left font-semibold text-gray-900">Delete Product</th>
                     </tr>
                 </thead>
                 <tbody id="products-table-body">
                     {% for product in products %}
                     <tr id= "{{ product.id }}" class="hover:bg-gray-100 cursor-pointer product-row"
-                        onclick="openSidebar('{{ product.id }}')"
                         data-name="{{ product.name|lower }}"
                         data-tagline="{{ product.tagline|lower }}"
                         data-description="{{ product.description|lower }}"
@@ -63,32 +62,33 @@
                                 </div>
                                 <div>
                                     <div class="font-medium text-gray-900">{{ product.name }}</div>
-                                    <div class="text-sm text-gray-500">{{ product.tagline }}</div>
+                                    <div class="text-sm text-gray-500">{{ product.tagline|default:"-" }}</div>
                                 </div>
                             </div>
                         </td>
                         <td>
                             <div class="max-w-xs">
                                 <p class="text-sm text-gray-900 line-clamp-2">
-                                    {{ product.description }}
+                                    {{ product.description|default:"-" }}
                                 </p>
                             </div>
                         </td>
                         <td>
+                            {% if product.landing_page_url %}
                             <a href="{{ product.landing_page_url }}" target="_blank"
                                class="text-blue-600 hover:text-blue-800 text-sm underline"
                                onclick="event.stopPropagation()">
                                 {{ product.landing_page_url|truncatechars:30 }}
                             </a>
+                            {% else %}
+                            <span class="text-gray-400">-</span>
+                            {% endif %}
                         </td>
                         <td>
-                            <span class="text-sm text-gray-500">{{ product.product_campaigns.count }}</span>
+                            <span class="text-sm text-gray-500">{{ product.product_campaigns.count|default:"-" }}</span>
                         </td>
                         <td>
                             <div class="flex items-center gap-2">
-                                <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); openSidebar('{{ product.id }}')" title="View">
-                                    <i class="fa-regular fa-eye"></i>
-                                </button>
                                 <button class="btn btn-ghost btn-xs text-red-500" onclick="event.stopPropagation(); confirmDeleteProduct({{ product.id }})" title="Delete">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
@@ -173,7 +173,6 @@
 </div>
 <!-- Overlay (hidden by default) -->
 <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
-
 <!-- Add Product Modal -->
 <dialog id="add-product-modal" class="modal">
     <div class="modal-box max-w-xl">
@@ -265,7 +264,6 @@
 let isEditMode = false;
 let originalProductData = {};
 let currentProductId = null;
-
 function openSidebar(productId) {
     fetch(`/api/products/${productId}/`)
         .then(res => res.json())
@@ -287,20 +285,16 @@ function openSidebar(productId) {
             setEditMode(false);
         });
 }
-
 function closeSidebar() {
     document.getElementById('sidebar').classList.add('translate-x-full');
     document.getElementById('overlay').classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
-
 document.getElementById('overlay').addEventListener('click', closeSidebar);
-
 function toggleEditMode() {
     isEditMode = !isEditMode;
     setEditMode(isEditMode);
 }
-
 function setEditMode(enable) {
     const toggle = (id, show) => {
         document.getElementById(id).classList.toggle('hidden', !show);
@@ -314,7 +308,6 @@ function setEditMode(enable) {
     document.getElementById('toggle-edit-btn').textContent = enable ? 'Cancel' : 'Edit';
     document.getElementById('save-settings-btn').classList.toggle('hidden', !enable);
 }
-
 function saveSettings() {
     const name = document.getElementById('product-name').value;
     const description = document.getElementById('Description').value;
@@ -351,14 +344,12 @@ function saveSettings() {
         console.error(err);
     });
 }
-
 // Product Modal Functions
 function addNewProduct() {
     // Reset form if needed
     document.getElementById('product-form').reset();
     ModalSystem.open('add-product-modal');
 }
-
 function submitProductForm(CompanyID) {
     const form = document.getElementById('product-form');
     if (!form.checkValidity()) {
@@ -392,7 +383,6 @@ function submitProductForm(CompanyID) {
         //ModalSystem.open('product-success-modal');
         ModalSystem.toast('Product saved successfully!', 'success');
         
-
         {% if not request.user.onboarding_completed %}
         localStorage.setItem("onboardingStep", "created_a_product");
         // Call the globally defined function
@@ -401,7 +391,9 @@ function submitProductForm(CompanyID) {
         };
         {% endif %}
         
+        {% if request.user.onboarding_completed %}
         window.location.reload();
+        {% endif %}
     })
     .catch(err => {
         alert("Save failed");
@@ -409,18 +401,15 @@ function submitProductForm(CompanyID) {
     });
  
 }
-
 function closeProductSuccessModal() {
     ModalSystem.close('product-success-modal');
     // Refresh the page or update the table in a real app
     window.location.reload();
 }
-
 // Update the existing addNewProduct function to use our modal
 function addNewProduct() {
     document.getElementById('add-product-modal').showModal();
 }
-
 // Product filtering functionality
 function filterProducts() {
     const searchTerm = document.getElementById('search-products').value.toLowerCase();
@@ -456,27 +445,23 @@ function filterProducts() {
     // Update counter
     document.getElementById('product-count').textContent = `${visibleCount} product${visibleCount !== 1 ? 's' : ''}`;
 }
-
 function clearProductFilters() {
     document.getElementById('search-products').value = '';
     filterProducts();
 }
-
 // Action functions (kept exactly as before)
 function editProduct(productId) {
     window.location.href = `/products/${productId}/edit/`;
 }
-
 function duplicateProduct(productId) {
     ModalSystem.toast('Product duplicated successfully!', 'success');
     // In a real app, this would make an API call to duplicate the product
 }
 
-
 function confirmDeleteProduct(productId) {
     ModalSystem.confirm({
         title: 'Delete Product',
-        message: 'Are you sure you want to delete this product? This action cannot be undone.',
+        message: 'Are you sure you want to delete this product? Please be careful—all data associated with it will also be permanently deleted (e.g., messages, campaigns, etc.). This action cannot be undone.',
         confirmText: 'Delete',
         confirmClass: 'btn-error',
         action: function() {
@@ -508,7 +493,6 @@ function confirmDeleteProduct(productId) {
         }
     });
 }
-
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners for filters
@@ -520,11 +504,6 @@ document.addEventListener('DOMContentLoaded', function() {
         noProductsRow.style.display = 'none';
     }
 });
-
-
-
-
-
 
 
 
@@ -557,7 +536,6 @@ function showProductCreationSuccessDriver() {
             driverObj2.destroy();
         });
 };
-
 
 document.addEventListener("DOMContentLoaded", () => {
     const step = localStorage.getItem("onboardingStep");
