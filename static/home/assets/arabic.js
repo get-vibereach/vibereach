@@ -69,7 +69,8 @@ ${n?'Expression: "'+n+`"
                 <div class="badge badge-primary badge-outline text-base p-3 mb-4 hidden md:inline-flex fustat-font">
                     🚀 ودّع الإرسال اليدوي، وركّز على العملاء
                 </div>
-                <h1 class="text-5xl lg:text-7xl font-bold gradient-text mb-6 pb-2 leading-tight fustat-font">
+                <h1 class="text-5xl lg:text-7xl font-bold gradient-text mb-6 pb-2 leading-tight fustat-font" 
+                    style="padding-bottom: 8px;">
                     حوّل إيميلاتك الباردة إلى 
                     <span class="text-primary">عملاء محتملين</span>
                 </h1>

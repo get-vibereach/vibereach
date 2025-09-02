@@ -222,7 +222,7 @@ ${n?'Expression: "'+n+`"
                                 </div>
                                 <div class="flex items-center gap-2 mb-2">
                                     <i class="fas fa-check text-success text-sm"></i>
-                                    <span class="text-sm">Applying your Business Tone and Style</span>
+                                    <span class="text-sm">Personalize each email</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <i class="fas fa-check text-success text-sm"></i>
@@ -258,15 +258,15 @@ ${n?'Expression: "'+n+`"
                             <div class="stats stats-vertical shadow bg-base-100">
                                 <div class="stat py-3">
                                     <div class="stat-title text-xs">Delivered</div>
-                                    <div class="stat-value text-success text-lg">98%</div>
+                                    <div class="stat-value text-success text-lg">97%</div>
                                 </div>
                                 <div class="stat py-3">
                                     <div class="stat-title text-xs">Opened</div>
-                                    <div class="stat-value text-primary text-lg">72%</div>
+                                    <div class="stat-value text-primary text-lg">38.14%</div>
                                 </div>
                                 <div class="stat py-3">
                                     <div class="stat-title text-xs">Replied</div>
-                                    <div class="stat-value text-accent text-lg">34%</div>
+                                    <div class="stat-value text-accent text-lg">5-10%</div>
                                 </div>
                             </div>
                         </div>
