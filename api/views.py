@@ -516,6 +516,26 @@ class ScheduleListCreateView(generics.ListCreateAPIView):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        # The 'campaign' instance is used for the lookup
+        campaign_instance = validated_data.pop('campaign')
+
+        # The rest of the data is used for the update/creation
+        instance, created = Schedule.objects.update_or_create(
+            campaign=campaign_instance,  # Lookup parameter
+            defaults=validated_data      # Fields to update or create with
+        )
+
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        response_serializer = self.get_serializer(instance)
+        
+        headers = self.get_success_headers(response_serializer.data) if created else {}
+        return Response(response_serializer.data, status=status_code, headers=headers)
+
 class ScheduleRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
