@@ -433,3 +433,41 @@ def create_rate_limiter_from_campaign(campaign) -> Optional[EmailAccountRateLimi
     except Exception as e:
         logger.error(f"Error creating rate limiter for campaign {campaign.id}: {str(e)}")
         return None
+
+
+
+def get_assignments_for_immediate_processing(campaign):
+    """
+    Returns a queryset of MessageAssignment objects that are truly ready to be processed right now.
+    This is the single source of truth for both the launch pre-check and the orchestrator.
+    """
+    from .models import MessageAssignment
+    # This is the exact logic from your orchestrator's step function
+    campaign_options = campaign.campaign_options.first()
+    query = MessageAssignment.objects.filter(campaign_id=campaign.id, sent=False)
+
+    if campaign_options and campaign_options.stop_on_reply:
+        replied_lead_ids = MessageAssignment.objects.filter(
+            campaign_id=campaign.id, responded=True
+        ).values_list('campaign_lead_id', flat=True).distinct()
+        query = query.exclude(campaign_lead_id__in=replied_lead_ids)
+    
+    ready_to_send_ids = []
+    for assignment in query.all(): # Use .all() to evaluate the query once
+        if assignment.delayed_by_days and assignment.delayed_by_days > 0:
+            last_sent = MessageAssignment.objects.filter(
+                campaign_lead=assignment.campaign_lead, 
+                sent=True, 
+                sent_at__isnull=False
+            ).order_by('-sent_at').first()
+            if last_sent:
+                if (timezone.now() - last_sent.sent_at).days >= assignment.delayed_by_days:
+                    ready_to_send_ids.append(assignment.id)
+            else:
+                # No previous email, so this one is ready to go
+                ready_to_send_ids.append(assignment.id)
+        else:
+            # No delay, it's ready
+            ready_to_send_ids.append(assignment.id)
+    
+    return MessageAssignment.objects.filter(id__in=ready_to_send_ids)

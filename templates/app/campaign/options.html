@@ -90,6 +90,7 @@
                     <div>
                         <h3 class="font-bold text-gray-800 text-base">Accounts to use</h3>
                         <p class="text-sm text-gray-500 mt-1">Select one or more accounts to send emails from</p>
+                        <p class="text-sm text-info mt-1">please contact us if you wanna add more email accounts</p>
                     </div>
                 
                     <div class="flex flex-col items-end gap-2">
@@ -145,6 +146,7 @@
                     <div>
                         <h3 class="font-bold text-gray-800 text-base">Open Tracking</h3>
                         <p class="text-sm text-gray-500 mt-1">Track email opens</p>
+                        <p class="text-sm text-info mt-1">Not recomeded for new email accounts</p>
                     </div>
                     <div class="flex items-center gap-4">
                         <label id="link-tracking-checkbox-driver" class="label cursor-pointer gap-2">
@@ -540,65 +542,126 @@
             }
         })
         .then(async (response) => {
-            // This block now handles all non-successful HTTP statuses
             if (!response.ok) {
-                let errorData;
-                try {
-                    // We TRY to parse the response as JSON first, as it may contain a detailed error message.
-                    errorData = await response.json();
-                } catch (e) {
-                    // If parsing fails (e.g., it's an HTML error page), we create a fallback error object.
-                    errorData = { 
-                        message: `Server responded with status ${response.status}: ${response.statusText}` 
-                    };
-                }
-                // We throw the structured error object to be caught by the .catch block.
-                throw errorData;
+                // This is the important part: we parse the JSON body of the error response
+                const errorData = await response.json();
+                throw errorData; // And throw it to the .catch() block
             }
-            // If the response was successful (2xx), we parse the JSON and proceed.
             return response.json();
         })
         .then(data => {
             ModalSystem.hideLoading();
-
-            // --- SUCCESS MESSAGE HANDLING ---
-            // This is where the proper success message is shown.
-            // The 'data' object from your API contains the details.
+            // This handles the successful launch
             if (data.success) {
                 ModalSystem.success({
-                    title: 'Campaign Launched Successfully!',
-                    message: `Your campaign "${data.campaign_name}" has been launched! ${data.pending_emails} emails are being processed.`,
+                    title: 'Campaign Launched!',
+                    message: `Your campaign "${data.campaign_name}" is now processing ${data.pending_emails} emails.`,
                 });
-                {% if not request.user.onboarding_completed %}
-                const step = localStorage.getItem("onboardingStep");
-                if (step === "saved_campaign_options") {
-                    localStorage.setItem("onboardingStep", "campaign_launched_successfully");
-                };
-                {% endif %}
-                window.location.href = '{% url 'campaign_dashboard' campaign_id %}';
+                // Redirect to the dashboard after a short delay
+                setTimeout(() => {
+                    window.location.href = '{% url 'campaign_dashboard' campaign_id %}';
+                }, 1500);
             } else {
-                // This handles cases where the server responds 200 OK but with success:false
-                console.error('Launch failed with success:false response:', data);
+                // This is a fallback for unexpected 200 OK but success:false responses
                 ModalSystem.error({
                     title: 'Launch Failed',
-                    message: getErrorMessage(data) // Use our helper to get the message
+                    message: data.message || 'An unknown error occurred.'
                 });
             }
         })
         .catch(error => {
+            // This block now catches our detailed error object from the backend
             ModalSystem.hideLoading();
-            
-            // This logs the actual error object to the console for debugging.
-            console.error('Launch error getrrortmsg fun:', getErrorMessage(error));
             console.error('Launch error:', error); 
-            
-            // This now shows a proper, human-readable message to the user.
-            ModalSystem.error({
-                title: 'Launch Error',
-                message: 'Error launching campaign, please contact support'
-            });
+
+            // Check for our specific error code
+            if (error && error.error_code === 'CAPACITY_EXCEEDED') {
+                // Call a new function to build and show a custom modal
+                showCapacityErrorModal(error.details);
+            } else {
+                // Use the generic error handler for all other problems
+                ModalSystem.error({
+                    title: 'Launch Error',
+                    message: getErrorMessage(error) // Your existing helper is great for this
+                });
+            }
         });
     }
+
+    // 2. Add this NEW function to your <script> block
+    // This function creates a detailed, beautiful DaisyUI modal for the capacity error.
+
+    function showCapacityErrorModal(details) {
+        // Create the HTML for the account details table
+        const accountDetailsHtml = details.summary.map(acc => `
+            <tr>
+                <td class="text-sm">${acc.email}</td>
+                <td class="text-sm text-center">${acc.remaining_capacity} / ${acc.daily_limit}</td>
+            </tr>
+        `).join('');
+
+        const modalHtml = `
+            <div class="modal-box">
+                <h3 class="font-bold text-lg text-error-content flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Daily Email Limit Reached
+                </h3>
+                <p class="py-4 text-base-content">
+                    You cannot launch this campaign right now because you don't have enough daily sending capacity.
+                </p>
+
+                <div class="stats shadow bg-base-200 w-full mb-4">
+                <div class="stat">
+                    <div class="stat-title">Emails Needed</div>
+                    <div class="stat-value text-secondary">${details.needed}</div>
+                    <div class="stat-desc">For this campaign launch</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">Capacity Available</div>
+                    <div class="stat-value text-error">${details.available}</div>
+                    <div class="stat-desc">Across all selected accounts</div>
+                </div>
+                </div>
+
+                <h4 class="font-semibold mb-2">Account Summary:</h4>
+                <div class="overflow-x-auto max-h-40">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Email Account</th>
+                                <th class="text-center">Remaining Capacity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${accountDetailsHtml}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-action">
+                    <form method="dialog">
+                        <button class="btn btn-ghost">Close</button>
+                    </form>
+                    <form method="dialog">
+                        <button class="btn btn-primary" onclick="higightEmailAccountSelection();">Add Accounts</button>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        // Use a generic modal container (or create one)
+        let modalContainer = document.getElementById('generic-modal');
+        if (!modalContainer) {
+            modalContainer = document.createElement('dialog');
+            modalContainer.id = 'generic-modal';
+            modalContainer.className = 'modal';
+            document.body.appendChild(modalContainer);
+        }
+        
+        modalContainer.innerHTML = modalHtml;
+        modalContainer.showModal();
+    }
+
     function validateCampaignReadiness() { /* This function is now superseded by the dirty state logic, but can be kept for other validation if needed */ }
     const campaignLocked = {% if campaign.status == 'active' or campaign.status == 'completed' %}true{% else %}false{% endif %};
     function disableFormInputs() { if (campaignLocked) { const inputs = document.querySelectorAll('#options-form input, #options-form select, #options-form button'); inputs.forEach(input => { input.disabled = true; input.classList.add('opacity-50', 'cursor-not-allowed'); }); } }
@@ -680,8 +743,7 @@
         {% endif %}
     }
 
-    // onboarding
-    {% if not request.user.onboarding_completed %}
+
     function higightEmailAccountSelection() {
         const inputEmailAccount = document.getElementById("searchInput");
 
@@ -718,6 +780,11 @@
         // Auto remove popup after 2 seconds
         setTimeout(() => popup.remove(), 2000);    
     }
+
+    
+    // onboarding
+    {% if not request.user.onboarding_completed %}
+    
 
     document.addEventListener("DOMContentLoaded", () => {
       const step = localStorage.getItem("onboardingStep");
