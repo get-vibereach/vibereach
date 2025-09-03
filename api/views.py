@@ -563,6 +563,43 @@ def launch_campaign(request, pk):
     try:
         campaign = get_object_or_404(Campaign, pk=pk)
 
+        # Check if email is hitting the rate limit
+        from campaign.scheduling_utils import create_rate_limiter_from_campaign, get_assignments_for_immediate_processing
+
+        # 1. Get the TRUE count of emails to be sent now
+        assignments_to_send = get_assignments_for_immediate_processing(campaign)
+        email_count_needed = assignments_to_send.count()
+
+        if email_count_needed == 0:
+            return Response({
+                'success': False,
+                'message': "This campaign has no emails ready to send at this time."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. Check the rate limit
+        rate_limiter = create_rate_limiter_from_campaign(campaign)
+
+        if not rate_limiter:
+            return Response({
+                'success': False,
+                'message': "No active email accounts are configured for this campaign."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not rate_limiter.can_send_emails(email_count_needed):
+            capacity_details = rate_limiter.get_capacity_summary()
+            # Return a detailed, structured error for the frontend
+            return Response({
+                'success': False,
+                'error_code': 'CAPACITY_EXCEEDED', # A specific code for the frontend to check
+                'message': 'Daily sending capacity exceeded.',
+                'details': {
+                    'needed': email_count_needed,
+                    'available': capacity_details['total_daily_capacity'],
+                    'summary': capacity_details['account_details']
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+
         # Check if campaign has email accounts assigned
         campaign_options = campaign.campaign_options.first()
         if not campaign_options:
