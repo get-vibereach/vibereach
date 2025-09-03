@@ -9,9 +9,8 @@ from .functions import (
 # Import campaign processing functions
 from campaign.tasks_inngest import (
     personalize_and_send_all_emails_at_once,
-    process_scheduled_emails,
+    process_scheduled_emails_orchestrator,
     send_single_email,
-    send_rate_limited_batch,
     reset_daily_email_limits,
     calculate_all_campaigns_daily_stats,
     calculate_daily_stats,
@@ -27,9 +26,8 @@ from campaign.tasks_inngest import (
 active_inngest_functions = [
     campaign_scheduler,
     personalize_and_send_all_emails_at_once,
-    process_scheduled_emails,
+    process_scheduled_emails_orchestrator,
     send_single_email,
-    send_rate_limited_batch,
     reset_daily_email_limits,
     calculate_all_campaigns_daily_stats,
     calculate_daily_stats,

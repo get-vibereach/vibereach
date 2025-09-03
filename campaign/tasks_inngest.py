@@ -5,7 +5,7 @@ from scheduler.client import inngest_client
 from django.utils import timezone
 from django.conf import settings
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from .models import MessageAssignment
 from .services import AnalyticsService
 
@@ -215,506 +215,178 @@ def personalize_and_send_all_emails_at_once(ctx: inngest.Context):
 
 
 
+# ============================================================================
+# NEW RELIABLE ORCHESTRATION PATTERN (Fan-Out/Fan-In)
+# ============================================================================
 
+# The NEW Orchestrator Function
 @inngest_client.create_function(
     fn_id="process_scheduled_emails",
     trigger=inngest.TriggerEvent(event="campaigns/process_scheduled_emails"),
 )
-def process_scheduled_emails(ctx: inngest.Context):
+def process_scheduled_emails_orchestrator(ctx: inngest.Context):
     """
-    Process scheduled emails with intelligent batch sending and rate limiting.
-    This function handles timezone-aware email delivery in optimized batches.
+    Orchestrates the entire campaign sending process.
+    1. Finds all emails to send.
+    2. Personalizes them.
+    3. Fans out scheduled events for each individual email.
+    4. Waits for all individual email events to complete.
+    5. Triggers the final campaign completion event.
     """
     try:
-        logger.info("🔍 DEBUG: process_scheduled_emails function started")
-        logger.info(f"🔍 DEBUG: ctx = {ctx}")
-        logger.info(f"🔍 DEBUG: ctx.event = {ctx.event}")
-        logger.info(f"🔍 DEBUG: ctx.event.data = {ctx.event.data}")
-
-        # Check if ctx.event.data exists
-        if not hasattr(ctx.event, 'data') or ctx.event.data is None:
-            logger.error("❌ ERROR: ctx.event.data is None or missing")
-            return {"status": "error", "message": "event data is missing"}
-
         campaign_id = ctx.event.data.get("campaign_id")
-        scheduled_time = ctx.event.data.get("scheduled_time")
-
-        logger.info(f"🔍 DEBUG: campaign_id = {campaign_id}")
-        logger.info(f"🔍 DEBUG: scheduled_time = {scheduled_time}")
-
         if not campaign_id:
-            logger.error("❌ ERROR: campaign_id is required but not provided")
             return {"status": "error", "message": "campaign_id is required"}
 
-        logger.info(f"📧 Processing scheduled emails for campaign {campaign_id} at {scheduled_time}")
+        logger.info(f"🚀 Orchestrating campaign launch for campaign {campaign_id}")
 
-        # Get the campaign, schedule, and rate limiter
-        logger.info(f"🔍 DEBUG: Importing models and utilities")
-        from .models import Campaign
-        from .scheduling_utils import create_scheduler_from_campaign, create_rate_limiter_from_campaign
+        from .models import Campaign, MessageAssignment
+        from .scheduling_utils import create_rate_limiter_from_campaign
 
-        logger.info(f"🔍 DEBUG: Getting campaign with ID: {campaign_id}")
         campaign = Campaign.objects.get(id=campaign_id)
-        logger.info(f"🔍 DEBUG: Found campaign: {campaign.name}")
 
-        logger.info(f"🔍 DEBUG: Creating scheduler from campaign")
-        scheduler = create_scheduler_from_campaign(campaign)
-        logger.info(f"🔍 DEBUG: Scheduler created: {scheduler}")
+        # Step 1: Get all message assignments to be processed
+        def get_assignments_to_process_step():
+            # ... (this logic is the same as your updated code)
+            logger.info(f"🔍 Querying message assignments for campaign {campaign_id}")
+            campaign_options = campaign.campaign_options.first()
+            query = MessageAssignment.objects.filter(campaign_id=campaign_id, sent=False)
+            if campaign_options and campaign_options.stop_on_reply:
+                replied_lead_ids = MessageAssignment.objects.filter(campaign_id=campaign_id, responded=True).values_list('campaign_lead_id', flat=True).distinct()
+                query = query.exclude(campaign_lead_id__in=replied_lead_ids)
+            
+            ready_to_send_ids = []
+            for assignment in query:
+                if assignment.delayed_by_days and assignment.delayed_by_days > 0:
+                    last_sent = MessageAssignment.objects.filter(campaign_id=campaign_id, campaign_lead=assignment.campaign_lead, sent=True, sent_at__isnull=False).order_by('-sent_at').first()
+                    if last_sent:
+                        if (timezone.now() - last_sent.sent_at).days >= assignment.delayed_by_days: ready_to_send_ids.append(assignment.id)
+                    else: ready_to_send_ids.append(assignment.id)
+                else: ready_to_send_ids.append(assignment.id)
+            
+            return [a.id for a in query.filter(id__in=ready_to_send_ids)]
+        
+        assignment_ids = ctx.step.run("get-assignments", get_assignments_to_process_step)
 
-        logger.info(f"🔍 DEBUG: Creating rate limiter from campaign")
-        rate_limiter = create_rate_limiter_from_campaign(campaign)
-        logger.info(f"🔍 DEBUG: Rate limiter created: {rate_limiter}")
+        if not assignment_ids:
+            logger.info(f"🏁 No emails to process for campaign {campaign_id}, triggering completion.")
+            ctx.step.send_event("send-completion-no-emails", inngest.Event(name="campaigns/complete", data={"campaign_id": campaign_id}))
+            return {"status": "success", "message": "No emails to process"}
 
-        # Check if we have email accounts configured
-        if not rate_limiter:
-            return {
-                'status': 'error',
-                'message': 'No active email accounts found for campaign',
-                'campaign_id': campaign_id
-            }
-
-        # Get all message assignments that need processing
-        logger.info(f"🔍 DEBUG: Querying message assignments for campaign {campaign_id}")
-
-        # Get campaign options to check stop_on_reply setting
-        campaign_options = campaign.campaign_options.first()
-
-        # Base query for unsent messages
-        query = MessageAssignment.objects.filter(
-            campaign_id=campaign_id,
-            sent=False
-        )
-
-        # Handle stop_on_reply: exclude messages for leads that have already replied
-        if campaign_options and campaign_options.stop_on_reply:
-            # Get leads that have replied to any message in this campaign
-            replied_lead_ids = MessageAssignment.objects.filter(
-                campaign_id=campaign_id,
-                responded=True
-            ).values_list('campaign_lead_id', flat=True).distinct()
-
-            # Exclude message assignments for leads that have replied
-            query = query.exclude(campaign_lead_id__in=replied_lead_ids)
-            logger.info(f"🛑 Stop on reply enabled: excluded {len(replied_lead_ids)} leads who have replied")
-
-        # Handle delayed_by_days: only include messages that are ready to send
-
-        ready_to_send_ids = []
-        for assignment in query:
-            if assignment.delayed_by_days and assignment.delayed_by_days > 0:
-                # Find the most recent sent message for this lead in this campaign
-                last_sent = MessageAssignment.objects.filter(
-                    campaign_id=campaign_id,
-                    campaign_lead=assignment.campaign_lead,
-                    sent=True,
-                    sent_at__isnull=False
-                ).order_by('-sent_at').first()
-
-                if last_sent:
-                    # Check if enough days have passed since the last sent message
-                    days_since_last = (timezone.now() - last_sent.sent_at).days
-                    if days_since_last >= assignment.delayed_by_days:
-                        ready_to_send_ids.append(assignment.id)
-                    else:
-                        logger.info(f"⏰ Message {assignment.id} delayed: {days_since_last}/{assignment.delayed_by_days} days passed")
-                else:
-                    # No previous message sent, this can be sent immediately
-                    ready_to_send_ids.append(assignment.id)
-            else:
-                # No delay specified, ready to send
-                ready_to_send_ids.append(assignment.id)
-
-        # Filter query to only include ready-to-send messages
-        query = query.filter(id__in=ready_to_send_ids)
-
-        total_emails = query.count()
-        logger.info(f"📊 Found {total_emails} emails to process for campaign {campaign_id}")
-        logger.info(f"🔍 DEBUG: Message assignments query: {query}")
-
-        # Log some sample message assignments
-        sample_assignments = list(query[:3])  # Get first 3 for debugging
-        for i, assignment in enumerate(sample_assignments):
-            logger.info(f"🔍 DEBUG: Sample assignment {i+1}: ID={assignment.id}, sent={assignment.sent}, lead={assignment.campaign_lead.lead.email}")
-
-        if total_emails == 0:
-            return {
-                'status': 'success',
-                'message': 'No emails to process',
-                'campaign_id': campaign_id
-            }
-
-        # Check if we can send all emails with current daily limits
-        if not rate_limiter.can_send_emails(total_emails):
-            capacity_summary = rate_limiter.get_capacity_summary()
-            logger.warning(f"⚠️ Campaign {campaign_id}: Cannot send {total_emails} emails. Daily capacity: {capacity_summary['total_daily_capacity']}")
-            return {
-                'status': 'error',
-                'message': f'Daily capacity exceeded. Can send {capacity_summary["total_daily_capacity"]} emails, requested {total_emails}',
-                'campaign_id': campaign_id,
-                'capacity_summary': capacity_summary
-            }
-
-        # Log capacity summary
-        capacity_summary = rate_limiter.get_capacity_summary()
-        logger.info(f"📧 Email capacity: {capacity_summary}")
-
-        # Determine processing strategy
-        if scheduler and total_emails > 10:  # Lower threshold for batching
-            # Use intelligent batch scheduling with rate limiting
-            return _process_emails_with_smart_scheduling(campaign, scheduler, rate_limiter, query, total_emails)
-        else:
-            # Process emails immediately with rate limiting
-            return _process_emails_with_rate_limiting(campaign, rate_limiter, query, total_emails)
-
-    except Campaign.DoesNotExist:
-        error_msg = f"Campaign {campaign_id} not found"
-        logger.error(error_msg)
-        return {"status": "error", "message": error_msg}
-
-    except Exception as e:
-        error_msg = f"Error processing scheduled emails for campaign {campaign_id}: {str(e)}"
-        logger.error(error_msg)
-        return {"status": "error", "message": error_msg}
+        # Step 2: Personalize all messages
+        ctx.step.run("personalize-messages", lambda: [
+            ma.personalize_with_ai(skip=True) for ma in MessageAssignment.objects.filter(id__in=assignment_ids, personlized_msg_to_send='')
+        ])
+        
+        assignments = list(MessageAssignment.objects.filter(id__in=assignment_ids, personlized_msg_to_send__gt='', sent=False))
+        if not assignments:
+            # Handle case where personalization failed for all
+            logger.warning(f"No assignments left to send for campaign {campaign_id} after personalization. Completing.")
+            ctx.step.send_event("send-completion-no-personalized", inngest.Event(name="campaigns/complete", data={"campaign_id": campaign_id}))
+            return {"status": "success", "message": "No personalized messages to send"}
 
 
-def _process_emails_with_rate_limiting(campaign, rate_limiter, query, total_emails):
-    """Process emails immediately with proper rate limiting across multiple accounts."""
-    logger.info(f"🚀 Processing {total_emails} emails immediately with rate limiting for campaign {campaign.id}")
+        # Step 3: Calculate send schedule and fan-out events
+        def fan_out_sends():
+            rate_limiter = create_rate_limiter_from_campaign(campaign)
+            if not rate_limiter:
+                raise Exception("No active email accounts found for campaign")
+            
+            if not rate_limiter.can_send_emails(len(assignments)):
+                raise Exception("Daily capacity exceeded")
 
-    # Personalize all messages first
-    personalize_count = 0
-    for message_assignment in query.filter(personlized_msg_to_send=''):
-        success = message_assignment.personalize_with_ai(skip=True)
-        if success:
-            personalize_count += 1
+            send_schedule = rate_limiter.calculate_send_schedule(len(assignments), timezone.now())
 
-    logger.info(f"📝 Personalized {personalize_count} messages")
-
-    # Get personalized message assignments
-    message_assignments = list(query.filter(personlized_msg_to_send__gt=''))
-
-    if not message_assignments:
-        return {
-            'status': 'success',
-            'message': 'No personalized messages to send',
-            'campaign_id': campaign.id,
-            'personalized_count': personalize_count,
-            'sent_count': 0,
-            'processing_type': 'immediate_rate_limited'
-        }
-
-    # Calculate send schedule with rate limiting
-    from django.utils import timezone
-    start_time = timezone.now() + timedelta(seconds=5)  # Small delay
-    send_schedule = rate_limiter.calculate_send_schedule(len(message_assignments), start_time)
-
-    logger.info(f"📅 Created send schedule for {len(send_schedule)} emails across {len(rate_limiter.email_accounts)} accounts")
-
-    # Schedule individual emails
-    scheduled_count = 0
-    for i, (message_assignment, schedule_item) in enumerate(zip(message_assignments, send_schedule)):
-        try:
-            inngest_client.send_sync(
-                inngest.Event(
+            events_to_send = []
+            for assignment, schedule_item in zip(assignments, send_schedule):
+                events_to_send.append(inngest.Event(
                     name="campaigns/send_single_email",
                     data={
                         "campaign_id": campaign.id,
-                        "message_assignment_id": message_assignment.id,
+                        "message_assignment_id": assignment.id,
                         "email_account_id": schedule_item['account'].id,
-                        "sequence_number": i + 1,
-                        "total_emails": len(message_assignments)
+                        "orchestrator_run_id": ctx.run_id, # IMPORTANT: Pass run ID for ack
                     },
-                    ts=int(schedule_item['send_time'].timestamp()) * 1000
-                )
+                    ts=int(schedule_item['send_time'].timestamp() * 1000)
+                ))
+            
+            inngest_client.send_sync(events_to_send)
+            logger.info(f"📬 Fanned out {len(events_to_send)} scheduled send events for campaign {campaign_id}")
+
+        ctx.step.run("fan-out-sends", fan_out_sends)
+
+        # Step 4: Wait for all fanned-out events to send an acknowledgement
+        for assignment in assignments:
+            # This will pause the function until an event with the matching criteria is received.
+            # It will resume once for each email that finishes.
+            ctx.step.wait_for_event(
+                f"wait-for-ack-{assignment.id}",
+                event=f"campaigns/email.sent.ack/{ctx.run_id}", # Event name includes run_id
+                timeout=timedelta(hours=24), # Generous timeout
+                # Optionally, you can add `if` to match on message_assignment_id
             )
-            scheduled_count += 1
-        except Exception as e:
-            logger.error(f"💥 Error scheduling email {message_assignment.id}: {str(e)}")
+            logger.info(f"👍 Received ACK for MA ID {assignment.id}")
 
-    return {
-        'status': 'success',
-        'message': f'Scheduled {scheduled_count} emails with rate limiting',
-        'campaign_id': campaign.id,
-        'personalized_count': personalize_count,
-        'scheduled_count': scheduled_count,
-        'processing_type': 'immediate_rate_limited',
-        'capacity_summary': rate_limiter.get_capacity_summary()
-    }
+        logger.info(f"🏁 All {len(assignments)} email acknowledgements received for campaign {campaign_id}.")
 
+        # Step 5: Reliably trigger the completion event
+        ctx.step.send_event(
+            "send-completion-event",
+            inngest.Event(name="campaigns/complete", data={"campaign_id": campaign_id})
+        )
 
-def _process_emails_with_smart_scheduling(campaign, scheduler, rate_limiter, query, total_emails):
-    """Process emails with intelligent scheduling that respects both time windows and rate limits."""
-    logger.info(f"📦 Processing {total_emails} emails with smart scheduling for campaign {campaign.id}")
+        return {"status": "success", "message": f"Campaign {campaign_id} orchestration complete."}
 
-    # Personalize all messages first
-    personalize_count = 0
-    for message_assignment in query.filter(personlized_msg_to_send=''):
-        success = message_assignment.personalize_with_ai(skip=True)
-        if success:
-            personalize_count += 1
-
-    logger.info(f"📝 Personalized {personalize_count} messages")
-
-    # Get personalized message assignments
-    message_assignments = list(query.filter(personlized_msg_to_send__gt=''))
-
-    if not message_assignments:
-        return {
-            'status': 'success',
-            'message': 'No personalized messages to send',
-            'campaign_id': campaign.id,
-            'personalized_count': personalize_count,
-            'sent_count': 0,
-            'processing_type': 'smart_scheduled'
-        }
-
-    # Calculate optimal batch times based on schedule
-    batch_size = min(50, rate_limiter.total_daily_capacity // 4)  # Conservative batching
-    batch_send_times = scheduler.calculate_batch_send_times(len(message_assignments), batch_size)
-
-    logger.info(f"📅 Calculated {len(batch_send_times)} batches for delivery")
-
-    # Schedule batches with rate limiting
-    scheduled_batches = 0
-
-    for i, send_time in enumerate(batch_send_times):
-        start_idx = i * batch_size
-        end_idx = min(start_idx + batch_size, len(message_assignments))
-        batch_assignments = message_assignments[start_idx:end_idx]
-
-        if batch_assignments:
-            # Schedule this batch with rate limiting
-            batch_ids = [ma.id for ma in batch_assignments]
-
-            inngest_client.send_sync(
-                inngest.Event(
-                    name="campaigns/send_rate_limited_batch",
-                    data={
-                        "campaign_id": campaign.id,
-                        "message_assignment_ids": batch_ids,
-                        "batch_number": i + 1,
-                        "total_batches": len(batch_send_times),
-                        "batch_send_time": send_time.isoformat()
-                    },
-                    ts=int(send_time.timestamp()) * 1000
-                )
-            )
-
-            scheduled_batches += 1
-            logger.info(f"⏰ Scheduled rate-limited batch {i + 1}/{len(batch_send_times)} for {send_time} ({len(batch_assignments)} emails)")
-
-    return {
-        'status': 'success',
-        'message': f'Scheduled {scheduled_batches} rate-limited batches for campaign {campaign.id}',
-        'campaign_id': campaign.id,
-        'personalized_count': personalize_count,
-        'total_emails': len(message_assignments),
-        'scheduled_batches': scheduled_batches,
-        'processing_type': 'smart_scheduled',
-        'capacity_summary': rate_limiter.get_capacity_summary()
-    }
+    except Exception as e:
+        logger.error(f"Error in orchestrator for campaign {ctx.event.data.get('campaign_id')}: {str(e)}", exc_info=True)
+        return {"status": "error", "message": str(e)}
 
 
+# The NEW Worker Function
 @inngest_client.create_function(
     fn_id="send_single_email",
     trigger=inngest.TriggerEvent(event="campaigns/send_single_email"),
 )
 def send_single_email(ctx: inngest.Context):
     """
-    Send a single email using a specific email account.
-    This function handles individual email sending with proper account tracking.
+    Worker function to send one email.
+    After sending, it sends an acknowledgement event back to the orchestrator.
     """
+    campaign_id = ctx.event.data.get("campaign_id")
+    message_assignment_id = ctx.event.data.get("message_assignment_id")
+    email_account_id = ctx.event.data.get("email_account_id")
+    orchestrator_run_id = ctx.event.data.get("orchestrator_run_id")
+
+    # The core logic of sending an email
+    from .models import Campaign, MessageAssignment
+    from clients.models import EmailAccount
+    from campaign.email_sender import send_campaign_email_with_account
+
     try:
-        campaign_id = ctx.event.data.get("campaign_id")
-        message_assignment_id = ctx.event.data.get("message_assignment_id")
-        email_account_id = ctx.event.data.get("email_account_id")
-        sequence_number = ctx.event.data.get("sequence_number", 1)
-        total_emails = ctx.event.data.get("total_emails", 1)
-
-        if not all([campaign_id, message_assignment_id, email_account_id]):
-            return {"status": "error", "message": "campaign_id, message_assignment_id, and email_account_id are required"}
-
-        logger.info(f"📧 Sending email {sequence_number}/{total_emails} for campaign {campaign_id}")
-
-        # Get models
-        from .models import Campaign
-        from clients.models import EmailAccount
-
         campaign = Campaign.objects.get(id=campaign_id)
         message_assignment = MessageAssignment.objects.get(id=message_assignment_id)
         email_account = EmailAccount.objects.get(id=email_account_id)
 
-        # Check if already sent
-        if message_assignment.sent:
-            return {
-                'status': 'success',
-                'message': 'Email already sent',
-                'campaign_id': campaign_id,
-                'message_assignment_id': message_assignment_id
-            }
-
-        # Check stop_on_reply: don't send if lead has already replied
-        if message_assignment.should_skip_sending_due_to_reply():
-            logger.info(f"🛑 Skipping email to {message_assignment.campaign_lead.lead.email} - lead has already replied")
-            return {
-                'status': 'skipped',
-                'message': 'Email skipped - lead has replied (stop_on_reply enabled)',
-                'campaign_id': campaign_id,
-                'message_assignment_id': message_assignment_id
-            }
-
-        # Send email using specific account
-        from campaign.email_sender import send_campaign_email_with_account
-        success = send_campaign_email_with_account(message_assignment, campaign, email_account)
-
-        if success:
-            logger.info(f"✅ Email {sequence_number}/{total_emails} sent to {message_assignment.campaign_lead.lead.email} via {email_account.email}")
-
-            # Check if this was the last email in the campaign
-            if sequence_number == total_emails:
-                # Check if all emails in campaign are now sent
-                remaining_emails = MessageAssignment.objects.filter(
-                    campaign=campaign,
-                    sent=False
-                ).count()
-
-                if remaining_emails == 0:
-                    logger.info(f"🏁 All emails sent for campaign {campaign.name}, triggering completion")
-                    # Trigger campaign completion
-                    inngest_client.send_sync(
-                        inngest.Event(
-                            name="campaigns/complete",
-                            data={"campaign_id": campaign_id}
-                        )
-                    )
-
-            return {
-                'status': 'success',
-                'message': 'Email sent successfully',
-                'campaign_id': campaign_id,
-                'message_assignment_id': message_assignment_id,
-                'email_account': email_account.email,
-                'sequence_number': sequence_number,
-                'total_emails': total_emails
-            }
-        else:
-            logger.error(f"❌ Failed to send email {sequence_number}/{total_emails} to {message_assignment.campaign_lead.lead.email}")
-            return {
-                'status': 'error',
-                'message': 'Failed to send email',
-                'campaign_id': campaign_id,
-                'message_assignment_id': message_assignment_id,
-                'email_account': email_account.email
-            }
-
-    except (Campaign.DoesNotExist, MessageAssignment.DoesNotExist, EmailAccount.DoesNotExist) as e:
-        error_msg = f"Model not found: {str(e)}"
-        logger.error(error_msg)
-        return {"status": "error", "message": error_msg}
+        if not message_assignment.sent and not message_assignment.should_skip_sending_due_to_reply():
+            send_campaign_email_with_account(message_assignment, campaign, email_account)
 
     except Exception as e:
-        error_msg = f"Error sending single email: {str(e)}"
-        logger.error(error_msg)
-        return {"status": "error", "message": error_msg}
+        logger.error(f"Error sending email for MA ID {message_assignment_id}: {str(e)}", exc_info=True)
+    
+    finally:
+        # ALWAYS send an acknowledgement, even if sending failed.
+        # The orchestrator only cares that the attempt was made.
+        if orchestrator_run_id:
+            inngest_client.send_sync(inngest.Event(
+                name=f"campaigns/email.sent.ack/{orchestrator_run_id}",
+                data={
+                    "campaign_id": campaign_id,
+                    "message_assignment_id": message_assignment_id,
+                }
+            ))
 
+    return {"status": "complete", "message_assignment_id": message_assignment_id}
 
-@inngest_client.create_function(
-    fn_id="send_rate_limited_batch",
-    trigger=inngest.TriggerEvent(event="campaigns/send_rate_limited_batch"),
-)
-def send_rate_limited_batch(ctx: inngest.Context):
-    """
-    Send a batch of emails with intelligent rate limiting across multiple accounts.
-    This function distributes emails across available accounts respecting their limits.
-    """
-    try:
-        campaign_id = ctx.event.data.get("campaign_id")
-        message_assignment_ids = ctx.event.data.get("message_assignment_ids", [])
-        batch_number = ctx.event.data.get("batch_number", 1)
-        total_batches = ctx.event.data.get("total_batches", 1)
-        batch_send_time = ctx.event.data.get("batch_send_time")
-
-        if not campaign_id or not message_assignment_ids:
-            return {"status": "error", "message": "campaign_id and message_assignment_ids are required"}
-
-        logger.info(f"📧 Sending rate-limited batch {batch_number}/{total_batches} for campaign {campaign_id} ({len(message_assignment_ids)} emails)")
-
-        # Get campaign and rate limiter
-        from .models import Campaign
-        from .scheduling_utils import create_rate_limiter_from_campaign
-
-        campaign = Campaign.objects.get(id=campaign_id)
-        rate_limiter = create_rate_limiter_from_campaign(campaign)
-
-        if not rate_limiter:
-            return {"status": "error", "message": "No active email accounts found"}
-
-        # Get message assignments
-        message_assignments = list(MessageAssignment.objects.filter(
-            id__in=message_assignment_ids,
-            sent=False
-        ))
-
-        if not message_assignments:
-            return {
-                'status': 'success',
-                'message': 'No emails to send (already sent or not found)',
-                'batch_number': batch_number
-            }
-
-        # Calculate send schedule for this batch
-        from django.utils import timezone
-        from datetime import datetime
-
-        if batch_send_time:
-            start_time = datetime.fromisoformat(batch_send_time.replace('Z', '+00:00'))
-        else:
-            start_time = timezone.now()
-
-        send_schedule = rate_limiter.calculate_send_schedule(len(message_assignments), start_time)
-
-        # Schedule individual emails
-        scheduled_count = 0
-        for message_assignment, schedule_item in zip(message_assignments, send_schedule):
-            try:
-                inngest_client.send_sync(
-                    inngest.Event(
-                        name="campaigns/send_single_email",
-                        data={
-                            "campaign_id": campaign_id,
-                            "message_assignment_id": message_assignment.id,
-                            "email_account_id": schedule_item['account'].id,
-                            "sequence_number": scheduled_count + 1,
-                            "total_emails": len(message_assignments)
-                        },
-                        ts=int(schedule_item['send_time'].timestamp()) * 1000
-                    )
-                )
-                scheduled_count += 1
-            except Exception as e:
-                logger.error(f"💥 Error scheduling email {message_assignment.id}: {str(e)}")
-
-        logger.info(f"📊 Rate-limited batch {batch_number}/{total_batches} scheduled: {scheduled_count} emails")
-
-        return {
-            'status': 'success',
-            'message': f'Rate-limited batch {batch_number}/{total_batches} scheduled',
-            'campaign_id': campaign_id,
-            'batch_number': batch_number,
-            'total_batches': total_batches,
-            'scheduled_count': scheduled_count,
-            'total_in_batch': len(message_assignment_ids)
-        }
-
-    except Campaign.DoesNotExist:
-        error_msg = f"Campaign {campaign_id} not found"
-        logger.error(error_msg)
-        return {"status": "error", "message": error_msg}
-
-    except Exception as e:
-        error_msg = f"Error processing rate-limited batch for campaign {campaign_id}: {str(e)}"
-        logger.error(error_msg)
-        return {"status": "error", "message": error_msg}
 
 
 # Helper function for backward compatibility

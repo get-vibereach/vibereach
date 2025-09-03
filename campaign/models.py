@@ -204,12 +204,6 @@ class Lead(models.Model):
     tags = models.CharField(max_length=255, blank=True, null=True)
 
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["subscribed_company", "email"], name="unique_email_per_company"
-            )
-        ]
 
     def save(self, *args, **kwargs):
         # Auto-populate English first_name and last_name
