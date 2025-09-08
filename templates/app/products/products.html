@@ -327,7 +327,7 @@ function saveSettings() {
         method: method,
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': '{{ csrf_token }}',
         },
         body: JSON.stringify(fullPayload)
     })
@@ -468,7 +468,7 @@ function confirmDeleteProduct(productId) {
             fetch(`/api/products/${productId}/`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-CSRFToken': '{{ csrf_token }}',
                     'Content-Type': 'application/json',
                 }
             })
