@@ -1685,22 +1685,6 @@ document.addEventListener("DOMContentLoaded", () => {
             allowKeyboardControl: false,
             steps: [
                 {
-                    element: "#unsaved-message-on-add-new-driver",
-                    popover: {
-                        title: "Create Your First Message!",
-                        description: "Great! Now that you have leads, let's create a reusable message template. We've started one for you here.",
-                        position: "right"
-                    }
-                },
-                {
-                    element: "#product-selection-form-driver",
-                    popover: {
-                        title: "Assign a Product",
-                        description: "First, link this message to a product to stay organized. This field is required.",
-                        position: "left"
-                    }
-                },
-                {
                     element: "#subject-form-driver",
                     popover: {
                         title: "Craft a Great Subject",
@@ -1709,74 +1693,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 },
                 {
-                    element: "#msg-intro-form-driver",
-                    popover: {
-                        title: "Write Your Intro",
-                        description: "Now for the opening line. Let's do something cool here to make it personal Just type a left brace `{` to bring up the variables list directly inside the editor!...",
-                        position: "left"
-                    }
-                },
-                {
                     element: "#msg-content-form-driver",
                     popover: {
                         title: "The Main Content",
-                        description: "Now for the body of your message. similary use `{` to bring up the variables list directly inside the editor!...",
+                        description: "Now for the opening line. Let's do something cool here to make it personal Just type a left brace `{` to bring up the variables list directly inside the editor!...",
                         position: "left"
                     }
-                },
-                {
-                    element: "#msg-cta-form-driver",
-                    popover: {
-                        title: "Add a Call to Action",
-                        description: "What do you want the prospect to do next? Ask a question or suggest a meeting.",
-                        position: "left"
-                    },
-                    onHighlightStarted: (element) => {
-                        // Find the scrollable parent container
-                        const formContainer = document.getElementById('message-form-container');
-                        if (formContainer) {
-                            // Get the position of the signature element relative to the container
-                            const elementTop = element.offsetTop;
-                            // Scroll the container so the element is positioned 100px from the top
-                            // This provides enough space to clear the bottom toolbar.
-                            formContainer.scrollTo({ top: elementTop - 100, behavior: 'smooth' });
-                        }
-                    }
-                },
-                {
-                    element: "#msg-ps-form-driver",
-                    popover: {
-                        title: "Add a P.S. (Optional)",
-                        description: "A P.S. adds a strong final point. Use this format: [text](url) for clickable, trackable links—e.g., [Our Website](https://gatara.org).",
-                        position: "left"
-                    }
-                },
-                {
-                    element: "#msg-pps-form-driver",
-                    popover: {
-                        title: "Add a P.P.S. (Optional)",
-                        description: "Use this for an extra call to action or a final piece of value.",
-                        position: "left"
-                    },
-                    onHighlightStarted: (element) => {
-                        // Find the scrollable parent container
-                        const formContainer = document.getElementById('message-form-container');
-                        if (formContainer) {
-                            // Get the position of the signature element relative to the container
-                            const elementTop = element.offsetTop;
-                            // Scroll the container so the element is positioned 100px from the top
-                            // This provides enough space to clear the bottom toolbar.
-                            formContainer.scrollTo({ top: elementTop - 100, behavior: 'smooth' });
-                        }
-                    }
-                },
-                {
-                    element: "#email-signature-form-driver",
-                    popover: {
-                        title: "Your Signature",
-                        description: "Finally, add your signature. This will be automatically appended to your messages.",
-                        position: "left"
-                    },
                 },
                 {
                     element: "#save-btn-driver",
@@ -1785,49 +1707,15 @@ document.addEventListener("DOMContentLoaded", () => {
                         description: "Looking good! Click 'Save' to store this message template for future use.",
                         position: "left"
                     }
-                },
-                {
-                    element: "#new-msg-saved-driver",
-                    popover: {
-                        title: "Your Message is now saved!",
-                        description: "",
-                        position: "top"
-                    }
-                },
-                // {
-                //     element: "#preview-msg-btn-driver",
-                //     popover: {
-                //         title: "Preview Your Message",
-                //         description: "You can always click 'Preview' to see how your message will look. When you're done, you're ready for your first campaign!",
-                //         position: "left"
-                //     }
-                // },
-                {
-                    element: "#message-preview",
-                    popover: {
-                        title: "Here is your Preview",
-                        description: "You can always edit it later.",
-                        position: "right"
-                    }
-                },
-                {
-                    element: "#campaigns-tab",
-                    popover: {
-                        title: "Well Done!",
-                        description: "you're ready for your first campaign!",
-                        position: "right"
-                    }
-                },
-                
+                },      
             ]
         });
         driverObj.drive();
         document.querySelector("#save-btn-driver").addEventListener("click", () => {
-            driverObj.moveNext();
-        });
-        // This part seems to target a button that doesn't exist.
-        document.querySelector("#campaigns-tab").addEventListener("click", () => {
             localStorage.setItem("onboardingStep", "created_first_msg");
+            setTimeout(() => {
+                window.location.href="{% url 'campaign_view_list' %}";
+            }, 1000);
             driverObj.destroy();
         });
     }

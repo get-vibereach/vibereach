@@ -384,11 +384,14 @@ function submitProductForm(CompanyID) {
         ModalSystem.toast('Product saved successfully!', 'success');
         
         {% if not request.user.onboarding_completed %}
-        localStorage.setItem("onboardingStep", "created_a_product");
-        // Call the globally defined function
-        if (typeof showProductCreationSuccessDriver === 'function') {
-            showProductCreationSuccessDriver();
-        };
+        const step = localStorage.getItem("onboardingStep");
+        if (step === "profile_completed") {
+            localStorage.setItem("onboardingStep", "created_a_product");
+            // Call the globally defined function
+            if (typeof showProductCreationSuccessDriver === 'function') {
+                showProductCreationSuccessDriver();
+            };
+        };    
         {% endif %}
         
         {% if request.user.onboarding_completed %}
@@ -513,28 +516,31 @@ document.addEventListener('DOMContentLoaded', function() {
 // Move the showProductCreationSuccessDriver function outside the conditional block
 // so it's always available in the global scope
 function showProductCreationSuccessDriver() {
-    const driver = window.driver.js.driver;
-    const driverObj2 = driver({
-        animate: true,
-        overlayOpacity: 0.5,
-        stagePadding: 10,
-        allowClose: false,
-        allowKeyboardControl: false,
-        steps: [
-            {
-                element: "#leads-tab",
-                popover: {
-                    title: "well done!",
-                    description: "Let's add a lead list!",
-                    position: "right"
-                }
-            },
-        ]
-    });
-    driverObj2.drive();
-    document.querySelector("#leads-tab").addEventListener("click", () => {
-            driverObj2.destroy();
-        });
+    // const driver = window.driver.js.driver;
+    // const driverObj2 = driver({
+    //     animate: true,
+    //     overlayOpacity: 0.5,
+    //     stagePadding: 10,
+    //     allowClose: false,
+    //     allowKeyboardControl: false,
+    //     steps: [
+    //         {
+    //             element: "#leads-tab",
+    //             popover: {
+    //                 title: "well done!",
+    //                 description: "Let's add a lead list!",
+    //                 position: "right"
+    //             }
+    //         },
+    //     ]
+    // });
+    // driverObj2.drive();
+    // document.querySelector("#leads-tab").addEventListener("click", () => {
+    //         driverObj2.destroy();
+    //     });
+    setTimeout(() => {
+        window.location.href="{% url 'email_accounts' %}";
+    }, 2000);
 };
 
 document.addEventListener("DOMContentLoaded", () => {

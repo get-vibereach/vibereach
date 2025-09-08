@@ -92,7 +92,7 @@
                                 <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); editAccount({{ email.id }})" title="Edit">
                                     <i class="fa-solid fa-edit"></i>
                                 </button>
-                                <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); testConnection({{ email.id }})" title="Test Connection">
+                                <button id="test-connection-driver" class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); testConnection({{ email.id }})" title="Test Connection">
                                     <i class="fa-solid fa-plug"></i>
                                 </button>
                                 <button class="btn btn-ghost btn-xs text-red-500" onclick="event.stopPropagation(); confirmDeleteAccount({{ email.id }})" title="Delete">
@@ -105,16 +105,16 @@
                     <tr id="no-accounts-row">
                         <td colspan="4" class="text-center py-16">
                             <div class="flex flex-col items-center justify-center">
-                                <img src="https://raw.githubusercontent.com/Othunderlight/static/refs/heads/main/no-accounts.svg "
-                                     alt="No accounts illustration"
-                                     class="w-64 h-auto mx-auto">
+                                <div class="inline-flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+                                    <i class="fa-solid fa-at text-2xl"></i>
+                                </div>    
                                 <h3 class="text-lg font-semibold text-gray-800 mb-2 mt-4">
                                     👋 Connect your first email account
                                 </h3>
                                 <p class="text-gray-500 mb-6">
                                     Get started by connecting an email account for your campaigns
                                 </p>
-                                <button class="btn btn-primary" onclick="showAddAccountModal()">
+                                <button id="empty-connect-email" class="btn btn-primary" onclick="showAddAccountModal()">
                                     <i class="fa-solid fa-plus mr-2"></i>
                                     Add Email Account
                                 </button>
@@ -466,6 +466,7 @@
             <div>
                 <label class="label">
                     <span class="label-text">Min Wait Time *</span>
+                    <div class="text-xs text-gray-500"><i>in seconds</i></div>
                 </label>
                 <input type="number" placeholder="Minimum wait time between emails" class="input input-bordered w-full bg-white" id="min-wait-time" min="1" value="1" required>
             </div>
@@ -770,6 +771,12 @@ function createEmailAccount() {
         .then(data => {
             document.getElementById('loading-modal').close();
             document.getElementById('success-modal').showModal();
+            {% if not request.user.onboarding_completed %}
+            const step = localStorage.getItem("onboardingStep");
+            if (step === "created_a_product") {
+                localStorage.setItem("onboardingStep", "created_email");
+            };    
+            {% endif %}
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
@@ -1068,6 +1075,15 @@ function testConnection(id) {
                 .then(data => {
                     if (data.success) {
                         window.ModalSystem.toast('Connection test successful!', 'success');
+                        {% if not request.user.onboarding_completed %}
+                        const step = localStorage.getItem("onboardingStep");
+                        if (step === "created_email") {
+                            localStorage.setItem("onboardingStep", "tested_email_connection");
+                            setTimeout(() => {
+                                window.location.href="{% url 'leads_lists' %}";
+                            }, 1000);
+                        };
+                        {% endif %}
                     } else {
                         window.ModalSystem.toast(`Connection test failed: ${data.message}`, 'error');
                     }
@@ -1137,5 +1153,75 @@ document.addEventListener('DOMContentLoaded', function() {
         noAccountsRow.style.display = 'none';
     }
 });
+
+
+
+
+
+// onboarding (no changes needed for Arabic fields here)
+{% if not request.user.onboarding_completed %}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const step = localStorage.getItem("onboardingStep");
+    if (step === "created_a_product") {
+        const driver = window.driver.js.driver;
+        const driverObj = driver({
+            animate: true,
+            overlayOpacity: 0.5,
+            stagePadding: 10,
+            allowClose: false,
+            allowKeyboardControl: false,
+            steps: [
+                {
+                    element: "#empty-connect-email",
+                    popover: {
+                        title: "Let's add your Email account!", 
+                        description: "Click here to add your Email account.",
+                        position: "bottom"
+                    }
+                },
+            ]
+        });
+        driverObj.drive();
+        // Trigger advance when the button inside the modal is clicked
+        document.querySelector("#empty-connect-email").addEventListener("click", () => {
+            //localStorage.setItem("onboardingStep", "clicked_add_leads_btn");
+            driverObj.destroy();
+        });
+    };
+
+    if (step === "created_email") {
+        const driver = window.driver.js.driver;
+        const driverObj = driver({
+            animate: true,
+            overlayOpacity: 0.5,
+            stagePadding: 10,
+            allowClose: false,
+            allowKeyboardControl: false,
+            steps: [
+                {
+                    element: "#test-connection-driver",
+                    popover: {
+                        title: "Let's test connection success!", 
+                        description: "",
+                        position: "bottom"
+                    }
+                },
+            ]
+        });
+        driverObj.drive();
+        // Trigger advance when the button inside the modal is clicked
+        document.querySelector("#test-connection-driver").addEventListener("click", () => {
+            //localStorage.setItem("onboardingStep", "clicked_add_leads_btn");
+            driverObj.destroy();
+        });
+    };
+});
+
+
+{% endif %}
+
+
+
 </script>
 {% endblock %}
