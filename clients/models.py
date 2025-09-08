@@ -322,12 +322,9 @@ class EmailAccount(models.Model):
     min_wait_time = models.IntegerField(default=1)
     emails_sent = models.IntegerField(default=0)
 
-    # to do: as the appility to change when the campaign options rate limit changed, you will get the emails in options and the
-    #        rate limit, you will do: rate_limit/emails.count, if it is 30 pass, else you will update each email (of thise emails)
-    #        rate limit to be the result 
     daily_limit = models.IntegerField(validators=[
             validators.MinValueValidator(1, "Daily limit must be at least 1."),
-            validators.MaxValueValidator(50, "Daily limit cannot exceed 1000.")
+            validators.MaxValueValidator(1000, "Daily limit cannot exceed 1000.")
         ],
         default=30)
 
