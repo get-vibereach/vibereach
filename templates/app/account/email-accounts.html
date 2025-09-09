@@ -1078,7 +1078,6 @@ function testConnection(id) {
                         {% if not request.user.onboarding_completed %}
                         const step = localStorage.getItem("onboardingStep");
                         if (step === "created_email") {
-                            localStorage.setItem("onboardingStep", "tested_email_connection");
                             setTimeout(() => {
                                 window.location.href="{% url 'leads_lists' %}";
                             }, 1000);

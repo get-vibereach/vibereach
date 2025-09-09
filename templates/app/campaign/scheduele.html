@@ -141,7 +141,7 @@
 
 
           <!-- div two-column layout -->
-        <div id=editable-form class="flex-1 flex gap-8 mt-6 overflow-hidden {% if not schedule %}hidden{% endif %}">
+        <div id="editable-form" class="flex-1 flex gap-8 mt-6 overflow-hidden {% if not schedule %}hidden{% endif %}">
           <!-- Left Column: Schedule List -->
           <div class="w-full max-w-xs flex-shrink-0 flex flex-col gap-4">
             <!-- Campaign Dates -->
@@ -612,43 +612,11 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         },
         {
-          element: "#schedule-name-block",
+          element: "#schedule-form",
           popover: {
-            title: "Name Your Schedule",
-            description: "Give your schedule a recognizable name. This is helpful if you plan to reuse it for other campaigns.",
-            position: "bottom"
-          }
-        },
-        {
-          element: "#schedule-timimig-from-block",
-          popover: {
-            title: "Set Start Time",
-            description: "Choose the earliest time of day your messages should be sent.",
-            position: "bottom"
-          }
-        },
-        {
-          element: "#schedule-timimig-to-block",
-          popover: {
-            title: "Set End Time",
-            description: "Specify the latest time messages will be sent. No messages will go out after this time.",
-            position: "bottom"
-          }
-        },
-        {
-          element: "#schedule-timzone-block",
-          popover: {
-            title: "Select Timezone",
-            description: "Choose the timezone for this schedule. All sending times will be based on this setting.",
-            position: "top"
-          }
-        },
-        {
-          element: "#schedule-days-block",
-          popover: {
-            title: "Choose Sending Days",
-            description: "Select the specific days of the week you want your campaign messages to be sent.",
-            position: "top"
+            title: "lets edit the scheduele",
+            description: "here you can scheduel your campaign based oon timezone, timing and days...",
+            position: "left"
           }
         },
         {
@@ -657,15 +625,6 @@ document.addEventListener("DOMContentLoaded", () => {
             title: "Save Your Schedule",
             description: "Once you're happy with the settings, click here to save your changes.",
             position: "top"
-          }
-        },
-        {
-          element: "#campaign-start",
-          disableActiveInteraction: true,
-          popover: {
-            title: "Campaign Start Date",
-            description: "You can set a specific start date for your campaign here. We'll leave it as is for now.",
-            position: "right"
           }
         },
         {
@@ -680,6 +639,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     driverObj.drive();
+
+    document.querySelector("#edit-defualt-schedule-btn").addEventListener("click", () => {
+        driverObj.moveNext();
+    });
 
     document.querySelector("#schedule-save-btn-driver").addEventListener("click", () => {
         driverObj.moveNext();
