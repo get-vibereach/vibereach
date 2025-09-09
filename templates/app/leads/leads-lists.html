@@ -219,7 +219,7 @@ function submitLeadsListForm(companyId) {
         
         {% if not request.user.onboarding_completed %}
         const step = localStorage.getItem("onboardingStep");
-        if (step === "tested_email_connection") {
+        if (step === "created_email") {
             localStorage.setItem("onboardingStep", "created_a_lead_list");
         };    
         {% endif %}
@@ -244,7 +244,7 @@ function submitLeadsListForm(companyId) {
 
 document.addEventListener("DOMContentLoaded", () => {
     const step = localStorage.getItem("onboardingStep");
-    if (step === "tested_email_connection") {
+    if (step === "created_email") {
         const driver = window.driver.js.driver;
         const driverObj = driver({
             animate: true,

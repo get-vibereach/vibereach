@@ -557,6 +557,14 @@
                     title: 'Campaign Launched!',
                     message: `Your campaign "${data.campaign_name}" is now processing ${data.pending_emails} emails.`,
                 });
+
+                {% if not request.user.onboarding_completed %}
+                const step = localStorage.getItem("onboardingStep");
+                if (step === "saved_campaign_options") {
+                    localStorage.setItem("onboardingStep", "campaign_launched_successfully");
+                };
+                {% endif %}
+                
                 // Redirect to the dashboard after a short delay
                 setTimeout(() => {
                     window.location.href = '{% url 'campaign_dashboard' campaign_id %}';
@@ -833,58 +841,12 @@
                 description: "",
                 position: "bottom"
               },
-            },
-            {
-              element: "#email-selector-driver",
-              popover: {
-                title: "Select Sending Accounts",
-                description: "First, choose which of your connected email accounts will send messages for this campaign.",
-                position: "bottom"
-              },
-            // *** MODIFICATION 1: Add hooks to show/hide the dropdown
+              // *** MODIFICATION 1: Add hooks to show/hide the dropdown
               onHighlightStarted: () => {
-                higightEmailAccountSelection();
+                setTimeout(() => {
+                    higightEmailAccountSelection();
+                }, 1000);      
               },
-            },
-            {
-              element: "#stop-on-reply-card-driver",
-              popover: {
-                title: "Stop on Reply",
-                description: "This crucial feature prevents sending follow-ups after a lead has replied. Notice that you need to set each replied lead individualy when yhe lead responds to your email.",
-                position: "right"
-              }
-            },
-            {
-              element: "#stop-on-reply-notice-driver",
-              popover: {
-                title: "NOTE!",
-                description: "You can do that in the by going to campaign sequesnce and click on any msg assigment card.", 
-                position: "bottom"
-              }
-            },
-            {
-              element: "#open-tracking-card-driver",
-              popover: {
-                title: "Tracking Options",
-                description: "Here you can enable or disable tracking for email opens and link clicks.",
-                position: "right"
-              }
-            },
-            {
-              element: "#link-tracking-checkbox-driver",
-              popover: {
-                title: "Link Tracking",
-                description: "if you included any link in your email, it will track who clicked it and when.",
-                position: "bottom"
-              }
-            },
-            {
-              element: "#daily-limit-card-driver",
-              popover: {
-                title: "Set Your Daily Sending Limit",
-                description: "Control the maximum number of emails this campaign sends per day to maintain good sender reputation. It adjusts automatically when you add accounts.",
-                position: "top"
-              }
             },
             {
               element: "#save-options-btn-driver",

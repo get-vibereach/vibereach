@@ -1698,6 +1698,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         title: "The Main Content",
                         description: "Now for the opening line. Let's do something cool here to make it personal Just type a left brace `{` to bring up the variables list directly inside the editor!...",
                         position: "left"
+                    },
+                    onHighlightStarted: (element) => {
+                        // Find the scrollable parent container
+                        const formContainer = document.getElementById('message-form-container');
+                        if (formContainer) {
+                            // Get the position of the signature element relative to the container
+                            const elementTop = element.offsetTop;
+                            // Scroll the container so the element is positioned 100px from the top
+                            // This provides enough space to clear the bottom toolbar.
+                            formContainer.scrollTo({ top: elementTop - 100, behavior: 'smooth' });
+                        }
                     }
                 },
                 {
