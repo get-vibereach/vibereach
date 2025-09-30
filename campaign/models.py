@@ -150,7 +150,7 @@ class LeadList(models.Model):
     tags= models.CharField(max_length=255, default='new list', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    campaigns= models.ManyToManyField(Campaign, null=True, blank=True)
+    campaigns= models.ManyToManyField(Campaign, blank=True)
 
     def __str__(self):
         return f"{self.title}"
