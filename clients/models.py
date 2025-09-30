@@ -71,6 +71,7 @@ class SubscribedCompany(models.Model):
 
 class Plan(models.Model):
     BILLING_CYCLE_CHOICES = [
+        ('trial', 'Trial'),
         ('monthly', 'Monthly'),
         ('3-month', '3 Months'),
         ('6-month', '6 Months'),
@@ -82,7 +83,7 @@ class Plan(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     billing_cycle = models.CharField(max_length=20, choices=BILLING_CYCLE_CHOICES)
     duration_days = models.PositiveIntegerField(
-        default=30,
+        blank=True,
         help_text="Number of days this plan lasts (e.g., 30 for monthly, 365 for annual)."
     )
 
@@ -91,17 +92,18 @@ class Plan(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
 
-        # Set duration_days based on billing cycle
-        if self.billing_cycle == 'monthly':
-            self.duration_days = 30
-        elif self.billing_cycle == '3-month':
-            self.duration_days = 90
-        elif self.billing_cycle == '6-month':
-            self.duration_days = 180
-        elif self.billing_cycle == 'annual':
-            self.duration_days = 365
-        else:
-            self.duration_days = 30
+        if not self.duration_days:
+            # Set duration_days based on billing cycle
+            if self.billing_cycle == 'monthly':
+                self.duration_days = 30
+            elif self.billing_cycle == '3-month':
+                self.duration_days = 90
+            elif self.billing_cycle == '6-month':
+                self.duration_days = 180
+            elif self.billing_cycle == 'annual':
+                self.duration_days = 365
+            else:
+                self.duration_days = 30
 
         super().save(*args, **kwargs)
 
