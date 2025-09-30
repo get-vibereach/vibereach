@@ -525,7 +525,7 @@ def calculate_all_campaigns_daily_stats(ctx: inngest.Context):
     try:
         logger.info("📊 Starting daily stats calculation for all active campaigns")
 
-        from .models import Campaign
+        from .models import Campaign, CampaignDailyStats
 
         # Get all active campaigns
         campaigns = Campaign.objects.filter(status='active')
@@ -535,15 +535,11 @@ def calculate_all_campaigns_daily_stats(ctx: inngest.Context):
 
         # Trigger individual calculation for each campaign
         for campaign in campaigns:
-            inngest_client.send_sync(
-                inngest.Event(
-                    name="analytics/calculate_daily_stats",
-                    data={
-                        "campaign_id": campaign.id,
-                        "target_date": None  # Use today's date
-                    }
-                )
-            )
+            from django.utils import timezone
+            target_date = timezone.now().date()
+            daily_stats = CampaignDailyStats.calculate_daily_stats(campaign, target_date)
+            logger.info(f"✅ Calculated daily stats for campaign {campaign.name} on {daily_stats.date}")
+
 
         logger.info(f"✅ Scheduled daily stats calculation for {count} campaigns")
 
