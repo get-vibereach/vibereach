@@ -286,56 +286,107 @@ def process_scheduled_emails_orchestrator(ctx: inngest.Context):
             return {"status": "success", "message": "No personalized messages to send"}
 
 
-        # Step 3: Calculate send schedule and fan-out events
-        def fan_out_sends():
+        # Step 3: Fan-out sends for today and schedule continuation if needed
+        def fan_out_and_reschedule():
             rate_limiter = create_rate_limiter_from_campaign(campaign)
             if not rate_limiter:
                 raise Exception("No active email accounts found for campaign")
-            
-            if not rate_limiter.can_send_emails(len(assignments)):
-                raise Exception("Daily capacity exceeded")
 
-            send_schedule = rate_limiter.calculate_send_schedule(len(assignments), timezone.now())
+            total_to_process = len(assignments)
+            capacity_today = rate_limiter.total_daily_capacity
+            
+            num_to_send_today = min(total_to_process, capacity_today)
+            
+            assignments_for_today = assignments[:num_to_send_today]
+            
+            has_more = total_to_process > num_to_send_today
+
+            if not assignments_for_today:
+                if has_more:
+                    # This case means we have emails to send, but zero capacity today.
+                    logger.info(f"No capacity to send emails today for campaign {campaign_id}. Scheduling for tomorrow.")
+                    from .scheduling_utils import create_scheduler_from_campaign
+                    scheduler = create_scheduler_from_campaign(campaign)
+                    if scheduler:
+                        now_in_tz = timezone.now().astimezone(scheduler.timezone)
+                        start_of_tomorrow = (now_in_tz + timedelta(days=1)).replace(hour=scheduler.from_time.hour, minute=scheduler.from_time.minute, second=0, microsecond=0)
+                        next_run_time = scheduler.get_next_valid_send_time(from_datetime=start_of_tomorrow)
+                        
+                        inngest_client.send_sync(inngest.Event(
+                            name="campaigns/process_scheduled_emails",
+                            data={"campaign_id": campaign.id},
+                            ts=int(next_run_time.timestamp() * 1000)
+                        ))
+                        logger.info(f"Next campaign run scheduled for {next_run_time.isoformat()}")
+                return [], False
+
+            # Calculate schedule for today's batch
+            send_schedule = rate_limiter.calculate_send_schedule(len(assignments_for_today), timezone.now())
 
             events_to_send = []
-            for assignment, schedule_item in zip(assignments, send_schedule):
+            for assignment, schedule_item in zip(assignments_for_today, send_schedule):
                 events_to_send.append(inngest.Event(
                     name="campaigns/send_single_email",
                     data={
                         "campaign_id": campaign.id,
                         "message_assignment_id": assignment.id,
                         "email_account_id": schedule_item['account'].id,
-                        "orchestrator_run_id": ctx.run_id, # IMPORTANT: Pass run ID for ack
+                        "orchestrator_run_id": ctx.run_id,
                     },
                     ts=int(schedule_item['send_time'].timestamp() * 1000)
                 ))
             
-            inngest_client.send_sync(events_to_send)
-            logger.info(f"📬 Fanned out {len(events_to_send)} scheduled send events for campaign {campaign_id}")
+            if events_to_send:
+                inngest_client.send_sync(events_to_send)
+                logger.info(f"📬 Fanned out {len(events_to_send)} scheduled send events for campaign {campaign_id} for today.")
 
-        ctx.step.run("fan-out-sends", fan_out_sends)
+            return assignments_for_today, has_more
 
-        # Step 4: Wait for all fanned-out events to send an acknowledgement
-        for assignment in assignments:
-            # This will pause the function until an event with the matching criteria is received.
-            # It will resume once for each email that finishes.
+        assignments_today, has_more = ctx.step.run("fan-out-and-reschedule", fan_out_and_reschedule)
+
+        if not assignments_today:
+            return {"status": "rescheduled", "message": "No capacity today, rescheduled for next available day."}
+
+        # Step 4: Wait for acknowledgements for today's batch
+        for assignment in assignments_today:
             ctx.step.wait_for_event(
                 f"wait-for-ack-{assignment.id}",
-                event=f"campaigns/email.sent.ack/{ctx.run_id}", # Event name includes run_id
-                timeout=timedelta(hours=24), # Generous timeout
-                # Optionally, you can add `if` to match on message_assignment_id
+                event=f"campaigns/email.sent.ack/{ctx.run_id}",
+                timeout=timedelta(hours=24),
             )
             logger.info(f"👍 Received ACK for MA ID {assignment.id}")
 
-        logger.info(f"🏁 All {len(assignments)} email acknowledgements received for campaign {campaign_id}.")
+        logger.info(f"🏁 All {len(assignments_today)} email acknowledgements received for campaign {campaign_id} for this batch.")
 
-        # Step 5: Reliably trigger the completion event
-        ctx.step.send_event(
-            "send-completion-event",
-            inngest.Event(name="campaigns/complete", data={"campaign_id": campaign_id})
-        )
-
-        return {"status": "success", "message": f"Campaign {campaign_id} orchestration complete."}
+        if has_more:
+            # Schedule the next run
+            logger.info(f"Batch complete for campaign {campaign_id}. Scheduling continuation as more emails are pending.")
+            from .scheduling_utils import create_scheduler_from_campaign
+            scheduler = create_scheduler_from_campaign(campaign)
+            if scheduler:
+                now_in_tz = timezone.now().astimezone(scheduler.timezone)
+                start_of_tomorrow = (now_in_tz + timedelta(days=1)).replace(hour=scheduler.from_time.hour, minute=scheduler.from_time.minute, second=0, microsecond=0)
+                next_run_time = scheduler.get_next_valid_send_time(from_datetime=start_of_tomorrow)
+                
+                ctx.step.send_event(
+                    "schedule-continuation",
+                    inngest.Event(
+                        name="campaigns/process_scheduled_emails",
+                        data={"campaign_id": campaign.id},
+                        ts=int(next_run_time.timestamp() * 1000)
+                    )
+                )
+                logger.info(f"Next campaign run scheduled for {next_run_time.isoformat()}")
+            
+            return {"status": "success", "message": f"Campaign {campaign_id} batch processed. Continuation scheduled."}
+        else:
+            # This was the last batch, trigger completion
+            logger.info(f"Final batch complete for campaign {campaign_id}. Triggering campaign completion.")
+            ctx.step.send_event(
+                "send-completion-event",
+                inngest.Event(name="campaigns/complete", data={"campaign_id": campaign_id})
+            )
+            return {"status": "success", "message": f"Campaign {campaign_id} orchestration complete."}
 
     except Exception as e:
         logger.error(f"Error in orchestrator for campaign {ctx.event.data.get('campaign_id')}: {str(e)}", exc_info=True)

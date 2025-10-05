@@ -189,8 +189,8 @@
                 <div id="daily-limit-card-driver" class="card bg-white p-6 rounded-lg shadow-sm flex-row items-center justify-between option-card">
                     <div>
                         <h3 class="font-bold text-gray-800 text-base">Daily Limit</h3>
-                        <p class="text-sm text-gray-500 mt-1">Max number of emails to send per day for this campaign.</p>
-                        <p class="text-sm text-gray-500 mt-1">Each email can send arround 30 emails per day, without landing in spam/promotion folders</p>
+                        <p class="text-sm text-gray-500 mt-1">Set the <strong>total</strong> maximum number of emails to send per day for this entire campaign.</p>
+                        <p class="text-sm text-info mt-1">This limit will be automatically divided among the selected email accounts to control their individual sending rates.</p>
                     </div>
                     <div id="daily-limit-input-driver" class="flex items-center gap-2">
                         <input type="number"
@@ -450,22 +450,44 @@
         setFormDirtyState(); // Mark form as changed
         if (optionName === 'dailyLimit') {
             const input = document.getElementById('daily-limit');
-            if (value < 2) value = 2;
-            if (value % 2 !== 0) {
-                value = Math.round(value / 2) * 2;
-                ModalSystem.toast('Adjusted to nearest even number: ' + value, 'info');
+            let numericValue = parseInt(value, 10);
+
+            // Define a safe maximum per email account and calculate total max
+            const maxPerAccount = 100; // A generous but safe limit per account
+            const accountCount = selectedEmails.length > 0 ? selectedEmails.length : 1;
+            const maxAllowed = accountCount * maxPerAccount;
+
+            // Validate the input value
+            if (isNaN(numericValue) || numericValue < 1) {
+                numericValue = 1;
             }
-            input.value = value;
+
+            if (numericValue > maxAllowed) {
+                ModalSystem.toast(`Limit capped at ${maxAllowed} (${maxPerAccount} per account).`, 'warning');
+                numericValue = maxAllowed;
+            }
+
+            input.value = numericValue;
+            campaignOptions[optionName] = numericValue;
+        } else {
+            campaignOptions[optionName] = value;
         }
-        campaignOptions[optionName] = value;
     }
 
-    // --- (UNCHANGED CODE from original script, but functions are now referenced by the new logic) ---
     function updateDailyLimit() {
         const accountCount = selectedEmails.length;
-        const newLimit = accountCount * 30; // 30 emails per account
-        document.getElementById('daily-limit').value = newLimit;
-        campaignOptions.dailyLimit = newLimit;
+        const recommendedPerAccount = 30;
+        const newLimit = accountCount * recommendedPerAccount;
+        
+        const input = document.getElementById('daily-limit');
+        const finalLimit = newLimit > 0 ? newLimit : 30;
+        input.value = finalLimit;
+        campaignOptions.dailyLimit = finalLimit;
+
+        // Also update the input's max attribute to guide the user
+        const maxPerAccount = 100;
+        const maxAllowed = accountCount > 0 ? accountCount * maxPerAccount : 1000; // Default to 1000 if no accounts
+        input.max = maxAllowed;
     }
 
     // *** MODIFICATION 3: Added logic to enable launch button on success
@@ -531,46 +553,45 @@
     function launchCampaign() { if (document.getElementById('launch-campaign-btn-driver').disabled) { ModalSystem.toast('Please save your changes before launching.', 'warning'); return; } if (campaignOptions.emailAccounts.length === 0) { ModalSystem.toast('Please select at least one email account.', 'error'); return; } saveOptionsBeforeLaunch().then(() => { ModalSystem.confirm({ title: 'Launch Campaign', message: `Launch this campaign with ${campaignOptions.emailAccounts.length} email account(s)?`, confirmText: 'Launch Campaign', confirmClass: 'btn-primary', action: () => { performCampaignLaunch(); } }); }).catch(error => { ModalSystem.toast('Failed to save options before launching. Please try again.', 'error'); }); }
     function saveOptionsBeforeLaunch() { return new Promise((resolve, reject) => { const campaignOptionsToSave = { campaign: {{ campaign_id }}, email_accounts: campaignOptions.emailAccounts.map(email => email.email_id), stop_on_reply: campaignOptions.stopOnReply, open_tracking_enabled: campaignOptions.openTracking, link_tracking_enabled: campaignOptions.linkTracking, send_as_text_only: campaignOptions.textOnly, send_first_email_as_text_only: campaignOptions.firstEmailTextOnly, daily_limit: campaignOptions.dailyLimit }; fetch('{% if campaign_options %}/api/campaign-options/{{ campaign_options.id }}/{% else %}/api/campaign-options/{% endif %}', { method: {% if campaign_options %}'PUT'{% else %}'POST'{% endif %}, headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify(campaignOptionsToSave) }).then(response => { if (!response.ok) { throw new Error('Failed to save'); } resolve(); }).catch(error => { reject(error); }); }); }
     // Replace your existing performCampaignLaunch function with this one
-    function performCampaignLaunch() {
+    function performCampaignLaunch(allowContinuation = false) {
         ModalSystem.loading('Launching campaign...');
+
+        const body = {
+            allow_continuation: allowContinuation
+        };
 
         fetch('/api/campaigns/{{ campaign_id }}/launch/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
-            }
+            },
+            body: JSON.stringify(body)
         })
         .then(async (response) => {
             if (!response.ok) {
-                // This is the important part: we parse the JSON body of the error response
                 const errorData = await response.json();
-                throw errorData; // And throw it to the .catch() block
+                throw errorData;
             }
             return response.json();
         })
         .then(data => {
             ModalSystem.hideLoading();
-            // This handles the successful launch
             if (data.success) {
                 ModalSystem.success({
                     title: 'Campaign Launched!',
-                    message: `Your campaign "${data.campaign_name}" is now processing ${data.pending_emails} emails.`,
+                    message: `Your campaign "${data.campaign_name}" is now processing. It will be sent in batches according to your daily limits.`,
                 });
-
                 {% if not request.user.onboarding_completed %}
                 const step = localStorage.getItem("onboardingStep");
                 if (step === "saved_campaign_options") {
                     localStorage.setItem("onboardingStep", "campaign_launched_successfully");
                 };
                 {% endif %}
-                
-                // Redirect to the dashboard after a short delay
                 setTimeout(() => {
                     window.location.href = '{% url 'campaign_dashboard' campaign_id %}';
                 }, 1500);
             } else {
-                // This is a fallback for unexpected 200 OK but success:false responses
                 ModalSystem.error({
                     title: 'Launch Failed',
                     message: data.message || 'An unknown error occurred.'
@@ -578,29 +599,21 @@
             }
         })
         .catch(error => {
-            // This block now catches our detailed error object from the backend
             ModalSystem.hideLoading();
             console.error('Launch error:', error); 
 
-            // Check for our specific error code
             if (error && error.error_code === 'CAPACITY_EXCEEDED') {
-                // Call a new function to build and show a custom modal
-                showCapacityErrorModal(error.details);
+                showCapacityExceededConfirmationModal(error.details);
             } else {
-                // Use the generic error handler for all other problems
                 ModalSystem.error({
                     title: 'Launch Error',
-                    message: getErrorMessage(error) // Your existing helper is great for this
+                    message: getErrorMessage(error)
                 });
             }
         });
     }
 
-    // 2. Add this NEW function to your <script> block
-    // This function creates a detailed, beautiful DaisyUI modal for the capacity error.
-
-    function showCapacityErrorModal(details) {
-        // Create the HTML for the account details table
+    function showCapacityExceededConfirmationModal(details) {
         const accountDetailsHtml = details.summary.map(acc => `
             <tr>
                 <td class="text-sm">${acc.email}</td>
@@ -610,54 +623,50 @@
 
         const modalHtml = `
             <div class="modal-box">
-                <h3 class="font-bold text-lg text-error-content flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Daily Email Limit Reached
+                <h3 class="font-bold text-lg text-warning-content flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    Launch with Limited Capacity?
                 </h3>
-                <p class="py-4 text-base-content">
-                    You cannot launch this campaign right now because you don't have enough daily sending capacity.
+                <p class="py-2 text-base-content">
+                    This campaign requires sending <strong>${details.needed}</strong> emails, but you only have capacity for <strong>${details.available}</strong> today.
+                </p>
+                <p class="text-base-content mb-4">
+                    If you launch now, the campaign will send <strong>${details.available}</strong> emails today and <strong>automatically continue</strong> on the next available days until complete.
                 </p>
 
-                <div class="stats shadow bg-base-200 w-full mb-4">
-                <div class="stat">
-                    <div class="stat-title">Emails Needed</div>
-                    <div class="stat-value text-secondary">${details.needed}</div>
-                    <div class="stat-desc">For this campaign launch</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Capacity Available</div>
-                    <div class="stat-value text-error">${details.available}</div>
-                    <div class="stat-desc">Across all selected accounts</div>
-                </div>
-                </div>
-
-                <h4 class="font-semibold mb-2">Account Summary:</h4>
-                <div class="overflow-x-auto max-h-40">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Email Account</th>
-                                <th class="text-center">Remaining Capacity</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${accountDetailsHtml}
-                        </tbody>
-                    </table>
+                <div class="collapse bg-base-200 collapse-arrow">
+                    <input type="checkbox" /> 
+                    <div class="collapse-title text-sm font-medium">
+                        View Account Summary
+                    </div>
+                    <div class="collapse-content"> 
+                        <div class="overflow-x-auto max-h-40">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Email Account</th>
+                                        <th class="text-center">Remaining Today</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${accountDetailsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-action">
                     <form method="dialog">
-                        <button class="btn btn-ghost">Close</button>
+                        <button class="btn btn-ghost">Cancel</button>
                     </form>
                     <form method="dialog">
-                        <button class="btn btn-primary" onclick="higightEmailAccountSelection();">Add Accounts</button>
+                        <button id="confirm-launch-anyway" class="btn btn-primary">Launch Anyway</button>
                     </form>
                 </div>
             </div>
         `;
 
-        // Use a generic modal container (or create one)
         let modalContainer = document.getElementById('generic-modal');
         if (!modalContainer) {
             modalContainer = document.createElement('dialog');
@@ -668,12 +677,17 @@
         
         modalContainer.innerHTML = modalHtml;
         modalContainer.showModal();
+
+        // Add event listener programmatically
+        document.getElementById('confirm-launch-anyway').onclick = () => {
+            performCampaignLaunch(true);
+        };
     }
 
     function validateCampaignReadiness() { /* This function is now superseded by the dirty state logic, but can be kept for other validation if needed */ }
     const campaignLocked = {% if campaign.status == 'active' or campaign.status == 'completed' %}true{% else %}false{% endif %};
     function disableFormInputs() { if (campaignLocked) { const inputs = document.querySelectorAll('#options-form input, #options-form select, #options-form button'); inputs.forEach(input => { input.disabled = true; input.classList.add('opacity-50', 'cursor-not-allowed'); }); } }
-    document.addEventListener('DOMContentLoaded', function() { toggleOption('stopOnReply', campaignOptions.stopOnReply); toggleOption('openTracking', campaignOptions.openTracking); renderSelected(); validateCampaignReadiness(); disableFormInputs(); setFormDirtyState(); /* Ensure button is disabled on load */ });
+    document.addEventListener('DOMContentLoaded', function() { toggleOption('stopOnReply', campaignOptions.stopOnReply); toggleOption('openTracking', campaignOptions.openTracking); renderSelected(); updateDailyLimit(); validateCampaignReadiness(); disableFormInputs(); setFormDirtyState(); /* Ensure button is disabled on load */ });
 
 
 
