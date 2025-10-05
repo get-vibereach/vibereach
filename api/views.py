@@ -605,7 +605,9 @@ def launch_campaign(request, pk):
                 'message': "No active email accounts are configured for this campaign."
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        if not rate_limiter.can_send_emails(email_count_needed):
+        allow_continuation = request.data.get('allow_continuation', False)
+
+        if not rate_limiter.can_send_emails(email_count_needed) and not allow_continuation:
             capacity_details = rate_limiter.get_capacity_summary()
             # Return a detailed, structured error for the frontend
             return Response({
