@@ -189,8 +189,8 @@
                 <div id="daily-limit-card-driver" class="card bg-white p-6 rounded-lg shadow-sm flex-row items-center justify-between option-card">
                     <div>
                         <h3 class="font-bold text-gray-800 text-base">Daily Limit</h3>
-                        <p class="text-sm text-gray-500 mt-1">Max number of emails to send per day for this campaign.</p>
-                        <p class="text-sm text-gray-500 mt-1">Each email can send arround 30 emails per day, without landing in spam/promotion folders</p>
+                        <p class="text-sm text-gray-500 mt-1">Set the <strong>total</strong> maximum number of emails to send per day for this entire campaign.</p>
+                        <p class="text-sm text-info mt-1">This limit will be automatically divided among the selected email accounts to control their individual sending rates.</p>
                     </div>
                     <div id="daily-limit-input-driver" class="flex items-center gap-2">
                         <input type="number"
@@ -450,22 +450,44 @@
         setFormDirtyState(); // Mark form as changed
         if (optionName === 'dailyLimit') {
             const input = document.getElementById('daily-limit');
-            if (value < 2) value = 2;
-            if (value % 2 !== 0) {
-                value = Math.round(value / 2) * 2;
-                ModalSystem.toast('Adjusted to nearest even number: ' + value, 'info');
+            let numericValue = parseInt(value, 10);
+
+            // Define a safe maximum per email account and calculate total max
+            const maxPerAccount = 100; // A generous but safe limit per account
+            const accountCount = selectedEmails.length > 0 ? selectedEmails.length : 1;
+            const maxAllowed = accountCount * maxPerAccount;
+
+            // Validate the input value
+            if (isNaN(numericValue) || numericValue < 1) {
+                numericValue = 1;
             }
-            input.value = value;
+
+            if (numericValue > maxAllowed) {
+                ModalSystem.toast(`Limit capped at ${maxAllowed} (${maxPerAccount} per account).`, 'warning');
+                numericValue = maxAllowed;
+            }
+
+            input.value = numericValue;
+            campaignOptions[optionName] = numericValue;
+        } else {
+            campaignOptions[optionName] = value;
         }
-        campaignOptions[optionName] = value;
     }
 
-    // --- (UNCHANGED CODE from original script, but functions are now referenced by the new logic) ---
     function updateDailyLimit() {
         const accountCount = selectedEmails.length;
-        const newLimit = accountCount * 30; // 30 emails per account
-        document.getElementById('daily-limit').value = newLimit;
-        campaignOptions.dailyLimit = newLimit;
+        const recommendedPerAccount = 30;
+        const newLimit = accountCount * recommendedPerAccount;
+        
+        const input = document.getElementById('daily-limit');
+        const finalLimit = newLimit > 0 ? newLimit : 30;
+        input.value = finalLimit;
+        campaignOptions.dailyLimit = finalLimit;
+
+        // Also update the input's max attribute to guide the user
+        const maxPerAccount = 100;
+        const maxAllowed = accountCount > 0 ? accountCount * maxPerAccount : 1000; // Default to 1000 if no accounts
+        input.max = maxAllowed;
     }
 
     // *** MODIFICATION 3: Added logic to enable launch button on success
@@ -665,7 +687,7 @@
     function validateCampaignReadiness() { /* This function is now superseded by the dirty state logic, but can be kept for other validation if needed */ }
     const campaignLocked = {% if campaign.status == 'active' or campaign.status == 'completed' %}true{% else %}false{% endif %};
     function disableFormInputs() { if (campaignLocked) { const inputs = document.querySelectorAll('#options-form input, #options-form select, #options-form button'); inputs.forEach(input => { input.disabled = true; input.classList.add('opacity-50', 'cursor-not-allowed'); }); } }
-    document.addEventListener('DOMContentLoaded', function() { toggleOption('stopOnReply', campaignOptions.stopOnReply); toggleOption('openTracking', campaignOptions.openTracking); renderSelected(); validateCampaignReadiness(); disableFormInputs(); setFormDirtyState(); /* Ensure button is disabled on load */ });
+    document.addEventListener('DOMContentLoaded', function() { toggleOption('stopOnReply', campaignOptions.stopOnReply); toggleOption('openTracking', campaignOptions.openTracking); renderSelected(); updateDailyLimit(); validateCampaignReadiness(); disableFormInputs(); setFormDirtyState(); /* Ensure button is disabled on load */ });
 
 
 
