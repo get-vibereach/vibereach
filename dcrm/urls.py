@@ -20,7 +20,10 @@ urlpatterns = [
     
     path('campaign/', include('campaign.urls')),
     path('api/', include('api.urls')),
+
     path('accounts/', include('clients.urls')),
+    path('oauth/', include('allauth.urls')),
+
     path('support/', include('support.urls')),
     path('feedback/', include('feedback.urls')),
 

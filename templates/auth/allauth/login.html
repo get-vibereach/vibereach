@@ -1,0 +1,202 @@
+{% extends 'auth/base_auth.html' %}
+{% load static %}
+
+{% block title %}Login{% endblock %} 
+
+{% block content %}
+<body class="min-h-screen bg-base-100">
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="toast toast-top toast-center z-50 msg-dj">
+                <div 
+                class="alert 
+                        {% if message.tags == 'success' %}alert-success
+                        {% elif message.tags == 'warning' %}alert-warning
+                        {% elif message.tags == 'error' %}alert-error
+                        {% else %}alert-info{% endif %}
+                mb-4">
+                <span>{{ message }}</span>
+                </div>
+            </div>    
+        {% endfor %}
+    {% endif %}
+
+
+    <!-- Header: Correctly positioned with flexbox -->
+    <header class="absolute top-0 left-0 w-full flex justify-between items-center p-4 pt-2">
+        <span class="badge badge-primary badge-outline font-semibold">Beta</span> 
+        <a href="{% url 'home' %}" class="btn btn-ghost">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+        </a>
+    </header>
+
+    <main class="min-h-screen flex flex-col items-center justify-center p-4">
+        
+        <!-- Logo -->
+        <div class="flex items-center mb-6">
+            <img src="/static/vibereach-logo.png" alt="Logo" class="w-12">
+            <span class="ml-3 text-3xl font-bold gradient-logo">VibeReach</span>
+        </div>
+
+        <!-- Login Card -->
+        <div class="card w-full max-w-sm shrink-0 shadow-lg bg-base-100">
+            <form class="card-body" method="post" action="{% url 'login_submit' %}">
+                {% csrf_token %}
+                <h2 class="card-title text-2xl font-bold justify-start mb-4">OK, let's Login <span class="text-success"> {{ request.user.first_name }}!</span></h2>
+
+                {% if next_url %}
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+
+
+                <!-- Username Input -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Email</span>
+                    </label>
+                    <input type="text" name="username" placeholder="" class="input input-bordered" required />
+                </div>
+
+                <!-- Password Input -->
+                <div class="form-control relative">
+                    <label class="label">
+                        <span class="label-text">Password</span>
+                    </label>
+                    <input id="password" type="password" name="password" placeholder="" class="input input-bordered pr-10" required />
+                    <div id="toggle-password" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 cursor-pointer" style="top: 2.3rem;">
+                        <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <svg id="eye-off-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.67.127 2.454.364m-6.998 6.998a3 3 0 114.242-4.242M9.88 9.88l4.242 4.242" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Login Button and Forgot Password -->
+                <div class="form-control mt-6 flex flex-row items-center justify-between">
+                     <button type="submit" class="btn btn-primary w-32">
+                        Log In
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </button>
+                    <a href="https://t.me/Omar_Gatara" class="label-text-alt link link-hover">Forgot password?<br>contact support</a>
+                </div>
+
+                <!-- Divider -->
+                <div class="divider my-4">OR</div>
+
+                <!-- Social Logins (Disabled for Beta) -->
+                <div class="form-control">
+                    <button id="google-login-btn" class="btn btn-outline btn-disabled" disabled>
+                        <img src="https://www.google.com/favicon.ico" alt="Google" class="w-4 h-4 mr-2">
+                        Log In with Google
+                    </button>
+                </div>
+
+                <!-- Sign Up Link (Disabled for Beta) -->
+                <div class="text-center mt-4">
+                    <p class="text-sm">Don't have an account? 
+                        <a href="#" id="signup-link" class="font-bold link opacity-50 cursor-not-allowed">Sign Up</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <style>
+        .beta-tooltip {
+            position: absolute;
+            background-color: oklch(var(--n)); /* Use your theme's neutral color */
+            color: oklch(var(--nc)); /* Use your theme's neutral-content color */
+            padding: 0.5rem 1rem;
+            border-radius: var(--rounded-btn);
+            font-size: 0.875rem;
+            font-weight: 600;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const togglePassword = document.getElementById('toggle-password');
+            const password = document.getElementById('password');
+            const eyeIcon = document.getElementById('eye-icon');
+            const eyeOffIcon = document.getElementById('eye-off-icon');
+
+            if (togglePassword) {
+                togglePassword.addEventListener('click', function (e) {
+                    // toggle the type attribute
+                    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                    password.setAttribute('type', type);
+                    // toggle the eye slash icon
+                    eyeIcon.classList.toggle('hidden');
+                    eyeOffIcon.classList.toggle('hidden');
+                });
+            }
+
+            const googleBtn = document.getElementById('google-login-btn');
+            const signupLink = document.getElementById('signup-link');
+
+            // --- Tooltip Function ---
+            function showTooltip(targetElement, message) {
+                // Remove any existing tooltips first
+                const existingTooltip = document.querySelector('.beta-tooltip');
+                if (existingTooltip) {
+                    existingTooltip.remove();
+                }
+
+                // Create the tooltip element
+                const tooltip = document.createElement('div');
+                tooltip.className = 'beta-tooltip';
+                tooltip.textContent = message;
+                document.body.appendChild(tooltip);
+
+                // Position the tooltip above the target element
+                const targetRect = targetElement.getBoundingClientRect();
+                tooltip.style.left = `${targetRect.left + (targetRect.width / 2) - (tooltip.offsetWidth / 2)}px`;
+                tooltip.style.top = `${targetRect.top - tooltip.offsetHeight - 10}px`;
+
+                // Fade in the tooltip
+                setTimeout(() => {
+                    tooltip.style.opacity = '1';
+                    tooltip.style.transform = 'translateY(0)';
+                }, 10);
+
+                // Fade out and remove the tooltip after a delay
+                setTimeout(() => {
+                    tooltip.style.opacity = '0';
+                    tooltip.style.transform = 'translateY(10px)';
+                    setTimeout(() => tooltip.remove(), 200);
+                }, 2500); // Tooltip disappears after 2.5 seconds
+            }
+
+            // --- Event Listeners for Disabled Elements ---
+            const disabledMessage = 'Not available during beta';
+
+            if (googleBtn) {
+                googleBtn.addEventListener('click', (event) => {
+                    event.preventDefault(); // Prevent any default button action
+                    showTooltip(googleBtn, disabledMessage);
+                });
+            }
+
+            if (signupLink) {
+                signupLink.addEventListener('click', (event) => {
+                    event.preventDefault(); // Prevent the link from navigating
+                    showTooltip(signupLink, disabledMessage);
+                });
+            }
+        });
+    </script>
+</body>
+{% endblock %}

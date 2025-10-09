@@ -34,6 +34,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'allauth',
+    'allauth.account',
+
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
     'rest_framework',
     'import_export',
     'django_htmx',
@@ -51,9 +58,26 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'clients.CustomUser'
 
 # Authentication settings
-LOGIN_URL = '/accounts/login/'
+LOGIN_URL = '/oauth/login/'
 LOGOUT_REDIRECT_URL = '/'
 
+
+# Django Allauth Config
+LOGIN_REDIRECT_URL = "/account-settings/"
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+SOCIALACCOUNT_LOGIN_ON_GET = True
+# ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# ACCOUNT_EMAIL_SUBJECT_PREFIX = "[CFE] "
+# ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
+
+
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin, regardless of `allauth`
+    'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods, such as login by email
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -61,6 +85,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    
+    'allauth.account.middleware.AccountMiddleware',
+
     'dcrm.middleware.CustomLoginRequiredMiddleware',
     'dcrm.middleware.RequestMiddleware',
     'dcrm.middleware.ViewOnlyMiddleware',
@@ -68,6 +95,20 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
 ]
+
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
 
 ROOT_URLCONF = 'dcrm.urls'
 
