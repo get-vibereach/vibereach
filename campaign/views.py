@@ -451,26 +451,42 @@ def overall_dashboard_view(request):
 
 @login_required
 def account_settings_view(request):
-    """Account settings page with Google login toggle functionality"""
+    """Account settings page with Google account linking functionality"""
     
     if request.method == 'POST':
-        # Handle Google login toggle
         action = request.POST.get('action')
         
-        if action == 'toggle_google_login':
-            current_status = request.user.google_login_enabled
-            request.user.google_login_enabled = not current_status
+        if action == 'disconnect_google':
+            # Disconnect Google account
+            request.user.google_email = None
+            request.user.google_login_enabled = False
             request.user.save()
             
-            if request.user.google_login_enabled:
-                messages.success(request, 'Google login has been enabled for your account.')
-            else:
-                messages.success(request, 'Google login has been disabled for your account.')
+            messages.success(request, 'Google account has been disconnected from your account.')
+            return redirect('account_settings')
             
+        elif action == 'disable_google_login':
+            # Disable Google login but keep the linked email
+            request.user.google_login_enabled = False
+            request.user.save()
+            
+            messages.success(request, 'Google login has been disabled.')
+            return redirect('account_settings')
+            
+        elif action == 'enable_google_login':
+            # Enable Google login if email is linked
+            if request.user.google_email:
+                request.user.google_login_enabled = True
+                request.user.save()
+                messages.success(request, 'Google login has been enabled.')
+            else:
+                messages.error(request, 'No Google account is linked. Please connect your Google account first.')
             return redirect('account_settings')
     
     context = {
         'user': request.user,
+        'google_email_linked': bool(request.user.google_email),
+        'google_email': request.user.google_email,
         'google_login_enabled': request.user.google_login_enabled,
     }
     

@@ -34,42 +34,93 @@
                 and configure billing information for your subscription.
             </p>
             
-            <!-- Google Login Settings -->
+            <!-- Google Account Settings -->
             <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="fab fa-google text-red-500"></i>
-                            Google Login
-                        </h3>
-                        <p class="text-sm text-gray-600 mt-1">
-                            Enable or disable Google authentication for your account
-                        </p>
+                <div class="mb-4">
+                    <h3 class="font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                        <i class="fab fa-google text-red-500"></i>
+                        Google Account
+                    </h3>
+                    <p class="text-sm text-gray-600">
+                        Link your Google account for convenient sign-in
+                    </p>
+                </div>
+
+                {% if not google_email_linked %}
+                    <!-- No Google Account Connected -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">No Google account connected</p>
+                                <p class="text-xs text-gray-600 mt-1">Connect your Google account to enable easy sign-in</p>
+                            </div>
+                            <a href="/oauth/google/login/" class="btn btn-outline btn-sm">
+                                <i class="fab fa-google text-red-500 mr-2"></i>
+                                Connect Google Account
+                            </a>
+                        </div>
                     </div>
-                    <form method="post" class="inline">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="toggle_google_login">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" class="sr-only peer"
-                                   {% if google_login_enabled %}checked{% endif %}
-                                   onchange="this.form.submit()">
-                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </form>
-                </div>
-                <div class="text-sm text-gray-600">
-                    {% if google_login_enabled %}
-                        <div class="flex items-center gap-2 text-green-600">
-                            <i class="fa-solid fa-check-circle"></i>
-                            Google login is enabled for your account
+                {% else %}
+                    <!-- Google Account Connected -->
+                    <div class="bg-green-50 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Google account connected</p>
+                                <p class="text-xs text-gray-600 mt-1">{{ google_email }}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                {% if google_login_enabled %}
+                                    <span class="badge badge-success badge-sm">Enabled</span>
+                                {% else %}
+                                    <span class="badge badge-warning badge-sm">Disabled</span>
+                                {% endif %}
+                            </div>
                         </div>
-                    {% else %}
-                        <div class="flex items-center gap-2 text-red-600">
-                            <i class="fa-solid fa-times-circle"></i>
-                            Google login is disabled for your account
+                        
+                        <!-- Controls -->
+                        <div class="flex items-center gap-2">
+                            {% if google_login_enabled %}
+                                <form method="post" class="inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="disable_google_login">
+                                    <button type="submit" class="btn btn-warning btn-xs">
+                                        <i class="fa-solid fa-pause mr-1"></i>
+                                        Disable Login
+                                    </button>
+                                </form>
+                            {% else %}
+                                <form method="post" class="inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="enable_google_login">
+                                    <button type="submit" class="btn btn-success btn-xs">
+                                        <i class="fa-solid fa-play mr-1"></i>
+                                        Enable Login
+                                    </button>
+                                </form>
+                            {% endif %}
+                            
+                            <form method="post" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="disconnect_google">
+                                <button type="submit" class="btn btn-error btn-xs"
+                                        onclick="return confirm('Are you sure you want to disconnect your Google account?')">
+                                    <i class="fa-solid fa-unlink mr-1"></i>
+                                    Disconnect
+                                </button>
+                            </form>
                         </div>
-                    {% endif %}
-                </div>
+                    </div>
+                    
+                    <div class="text-xs text-gray-600">
+                        <p><strong>Note:</strong> You can login with either:</p>
+                        <ul class="list-disc list-inside mt-1 space-y-1">
+                            <li>Your business email ({{ user.email }}) and password</li>
+                            {% if google_login_enabled %}
+                                <li>Your connected Google account ({{ google_email }})</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Features List -->

@@ -54,33 +54,53 @@ class CustomEmailAdapter(DefaultAccountAdapter):
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     def pre_social_login(self, request, sociallogin):
         """
-        Check if Google login is enabled for the user before allowing social login
+        Handle Google login with separate google_email field
         """
         # Only check for Google provider
         if sociallogin.account.provider != 'google':
             return
 
         # Get the email from the social account
-        email = sociallogin.account.extra_data.get('email')
-        if not email:
+        google_email = sociallogin.account.extra_data.get('email')
+        if not google_email:
             messages.error(request, 'Unable to retrieve email from Google account.')
             raise ImmediateHttpResponse(redirect('login'))
 
+        # Check if this is a linking request (user is already logged in)
+        if request.user.is_authenticated:
+            # This is a Google account linking request
+            if request.user.google_email:
+                messages.error(request, 'You already have a Google account linked. Please disconnect it first.')
+                raise ImmediateHttpResponse(redirect('account_settings'))
+            
+            # Link the Google email to the current user
+            request.user.google_email = google_email
+            request.user.google_login_enabled = True
+            request.user.save()
+            
+            messages.success(request, f'Google account {google_email} has been successfully linked to your account.')
+            raise ImmediateHttpResponse(redirect('account_settings'))
+        
+        # This is a login attempt
         try:
-            # Check if user exists and has Google login enabled
-            user = User.objects.get(email=email)
+            # Find user by their linked Google email
+            user = User.objects.get(google_email=google_email)
+            
             if not user.google_login_enabled:
                 messages.error(
                     request,
-                    'Google login is not enabled for your account. Please enable it in your account settings or login with your email and password.'
+                    'Google login is disabled for your account. Please enable it in your account settings or login with your email and password.'
                 )
                 raise ImmediateHttpResponse(redirect('login'))
                 
+            # Set the user for login
+            sociallogin.user = user
+                
         except User.DoesNotExist:
-            # User doesn't exist, prevent automatic signup
+            # No user found with this Google email
             messages.error(
                 request,
-                'No account found with this email address. Please signup first or login with your existing email and password.'
+                'No account found linked to this Google email. Please login with your business email and link your Google account in settings.'
             )
             raise ImmediateHttpResponse(redirect('login'))
 
