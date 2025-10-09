@@ -62,11 +62,15 @@ LOGIN_URL = '/oauth/login/'
 LOGOUT_REDIRECT_URL = '/'
 
 
+
 # Django Allauth Config
 LOGIN_REDIRECT_URL = "/account-settings/"
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
 SOCIALACCOUNT_LOGIN_ON_GET = True
 ACCOUNT_ADAPTER = 'dcrm.adapter.CustomEmailAdapter'
+SOCIALACCOUNT_ADAPTER = 'dcrm.adapter.CustomSocialAccountAdapter'
+# Prevent automatic account creation via Google login
+SOCIALACCOUNT_AUTO_SIGNUP = False
 # ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 # ACCOUNT_EMAIL_SUBJECT_PREFIX = "[CFE] "
 # ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]

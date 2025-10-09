@@ -3,6 +3,8 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.http import Http404, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db.models import Count, Q, Min, Sum
 from django.core.paginator import Paginator
 import pytz
@@ -447,9 +449,32 @@ def overall_dashboard_view(request):
     return render(request, "app/overall-dashboard.html")
 
 
+@login_required
 def account_settings_view(request):
-    """Account settings page"""
-    return render(request, "app/account/account-settings.html")
+    """Account settings page with Google login toggle functionality"""
+    
+    if request.method == 'POST':
+        # Handle Google login toggle
+        action = request.POST.get('action')
+        
+        if action == 'toggle_google_login':
+            current_status = request.user.google_login_enabled
+            request.user.google_login_enabled = not current_status
+            request.user.save()
+            
+            if request.user.google_login_enabled:
+                messages.success(request, 'Google login has been enabled for your account.')
+            else:
+                messages.success(request, 'Google login has been disabled for your account.')
+            
+            return redirect('account_settings')
+    
+    context = {
+        'user': request.user,
+        'google_login_enabled': request.user.google_login_enabled,
+    }
+    
+    return render(request, "app/account/account-settings.html", context)
 
 
 def tracking_test_view(request):
