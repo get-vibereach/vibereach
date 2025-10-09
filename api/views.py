@@ -1,9 +1,16 @@
 import datetime
 import json
 import logging
+import base64
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django.conf import settings
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from api.utils import auto_unassign_if_list_empty
 from clients.models import Product, EmailAccount
 from campaign.models import Campaign, CampaignLead, CampaignOptions, CampaignStats, Lead, LeadList, Message, MessageAssignment, Schedule
@@ -926,3 +933,128 @@ def refresh_campaign_daily_stats(request):
 @api_view(['POST'])
 def launch_inggest_test(request):
     pass
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def jwks_endpoint(request):
+    """
+    JWKS endpoint for MCP server to validate JWT tokens
+    Returns the public key in JWKS format
+    """
+    try:
+        private_key_pem = settings.SIMPLE_JWT.get('SIGNING_KEY', '')
+        if not private_key_pem:
+            return Response({
+                'error': 'JWT signing key not configured'
+            }, status=500)
+
+        # Load the private key to extract public key
+        try:
+            private_key = load_pem_private_key(
+                private_key_pem.encode('utf-8'),
+                password=None,
+            )
+            public_key = private_key.public_key()
+            
+            # Serialize public key to PEM format
+            public_key_pem = public_key.public_key_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            
+            # Convert to base64url for JWKS
+            public_key_der = public_key.public_key_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            
+            # For RSA keys, we need to extract n and e values
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            if isinstance(public_key, rsa.RSAPublicKey):
+                public_numbers = public_key.public_numbers()
+                n = base64.urlsafe_b64encode(public_numbers.n.to_bytes((public_numbers.n.bit_length() + 7) // 8, 'big')).decode('utf-8').rstrip('=')
+                e = base64.urlsafe_b64encode(public_numbers.e.to_bytes((public_numbers.e.bit_length() + 7) // 8, 'big')).decode('utf-8').rstrip('=')
+                
+                jwks = {
+                    "keys": [
+                        {
+                            "kty": "RSA",
+                            "use": "sig",
+                            "alg": "RS256",
+                            "kid": "cccrm-jwt-key",
+                            "n": n,
+                            "e": e
+                        }
+                    ]
+                }
+                
+                return Response(jwks, content_type='application/json')
+            else:
+                return Response({
+                    'error': 'Only RSA keys are supported for JWKS'
+                }, status=500)
+                
+        except Exception as key_error:
+            logger.error(f"Error processing JWT key: {str(key_error)}")
+            return Response({
+                'error': 'Invalid JWT signing key format'
+            }, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error generating JWKS: {str(e)}")
+        return Response({
+            'error': 'Internal server error'
+        }, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_token(request):
+    """
+    Alternative token validation endpoint for MCP server
+    if JWT validation is not used directly
+    """
+    from rest_framework_simplejwt.tokens import AccessToken
+    from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+    
+    token = request.data.get('token')
+    if not token:
+        return Response({
+            'valid': False,
+            'error': 'Token is required'
+        }, status=400)
+    
+    try:
+        # Validate the token
+        access_token = AccessToken(token)
+        user_id = access_token.payload.get('user_id')
+        
+        # Get user details
+        from clients.models import CustomUser
+        try:
+            user = CustomUser.objects.get(id=user_id)
+            return Response({
+                'valid': True,
+                'user_id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'company_id': user.subscribed_company.id if user.subscribed_company else None
+            })
+        except CustomUser.DoesNotExist:
+            return Response({
+                'valid': False,
+                'error': 'User not found'
+            }, status=404)
+            
+    except (InvalidToken, TokenError) as e:
+        return Response({
+            'valid': False,
+            'error': f'Invalid token: {str(e)}'
+        }, status=401)
+    except Exception as e:
+        logger.error(f"Error validating token: {str(e)}")
+        return Response({
+            'valid': False,
+            'error': 'Internal server error'
+        }, status=500)

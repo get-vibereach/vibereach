@@ -58,6 +58,9 @@ coverage.xml
 # Docker
 *.pid
 
+# secret
+*pem
+
 # Ignore all files in migrations folders except __init__.py
 migrations/
 

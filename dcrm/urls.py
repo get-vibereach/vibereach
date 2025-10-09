@@ -21,8 +21,13 @@ urlpatterns = [
     path('campaign/', include('campaign.urls')),
     path('api/', include('api.urls')),
 
+    # Existing browser-based authentication
     path('oauth/', include('allauth.urls')),
     path('accounts/', include('clients.urls')),
+
+    # New API-based authentication for MCP clients
+    path('auth/', include('dj_rest_auth.urls')),
+    path('auth/registration/', include('dj_rest_auth.registration.urls')),
 
     path('support/', include('support.urls')),
     path('feedback/', include('feedback.urls')),
