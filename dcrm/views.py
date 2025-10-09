@@ -40,5 +40,5 @@ def health_check(request):
 
 
 
-def redirect_to_login(request):
-    return redirect('login')            
+# def redirect_to_login(request):
+#     return redirect('login')            

@@ -20,6 +20,8 @@ from campaign.tasks_inngest import (
     notify_ending_soon,
     # notify_expired,
     notify_admin_on_new_user_task,
+
+    send_transactional_email_task,
 )
 
 
@@ -37,6 +39,8 @@ active_inngest_functions = [
     notify_ending_soon,
     # notify_expired,
     notify_admin_on_new_user_task,
+
+    send_transactional_email_task,
 ]
 
 

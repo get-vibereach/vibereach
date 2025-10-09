@@ -4,7 +4,7 @@ from django.shortcuts import redirect, render
 
 from scheduler.views import scheduler_inngest_view_path
 from campaign.views import account_settings_view
-from .views import health_check, redirect_to_login, home_view, home_ar_view
+from .views import health_check, home_view, home_ar_view
 
 
 
@@ -21,8 +21,8 @@ urlpatterns = [
     path('campaign/', include('campaign.urls')),
     path('api/', include('api.urls')),
 
-    path('accounts/', include('clients.urls')),
     path('oauth/', include('allauth.urls')),
+    path('accounts/', include('clients.urls')),
 
     path('support/', include('support.urls')),
     path('feedback/', include('feedback.urls')),

@@ -4,8 +4,8 @@ from . import views
 urlpatterns = [
     # Template views
     path('signup/<uuid:token>/', views.trial_signup_view, name='trial_signup'),
-    path('login/', views.login_view, name='login'),
-    path('login/submit/', views.login_submit, name='login_submit'),
+    # path('login/', views.login_view, name='login'),
+    # path('login/submit/', views.login_submit, name='login_submit'),
     path('login/<uuid:token>/', views.login_with_token_view, name='login_with_token'),
     path('logout/', views.logout_view, name='logout'),
     path('reset-password/', views.reset_password_view, name='reset_password'),

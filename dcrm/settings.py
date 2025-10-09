@@ -66,6 +66,7 @@ LOGOUT_REDIRECT_URL = '/'
 LOGIN_REDIRECT_URL = "/account-settings/"
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
 SOCIALACCOUNT_LOGIN_ON_GET = True
+ACCOUNT_ADAPTER = 'dcrm.adapter.CustomEmailAdapter'
 # ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 # ACCOUNT_EMAIL_SUBJECT_PREFIX = "[CFE] "
 # ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
@@ -116,6 +117,7 @@ OPEN_URLS = [
     r"^/api/inngest",
     r"^/campaign/tracking/.*$",
     r"^/admin/.*$",
+    r"^/oauth/password/reset/.*$",
 ]
 
 
