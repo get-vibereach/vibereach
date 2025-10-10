@@ -1008,6 +1008,71 @@ def jwks_endpoint(request):
         }, status=500)
 
 
+def mcp_oauth2_callback(request):
+    """
+    MCP OAuth2 callback endpoint.
+    Handles the callback from Google OAuth and redirects back to MCP server with user info.
+    """
+    from django.shortcuts import redirect
+    from django.contrib.auth import get_user_model
+    from urllib.parse import urlparse, parse_qs
+
+    User = get_user_model()
+
+    try:
+        # Get callback parameters from the URL
+        mcp_callback_params = request.GET.get('mcp_callback_params', '')
+
+        if not mcp_callback_params:
+            logger.error("No MCP callback parameters provided")
+            return redirect(f"{settings.SITE_URL}/auth/error?error=missing_callback_params")
+
+        # Parse the callback parameters
+        try:
+            # mcp_callback_params format: "auth_request_id=IrZ9FnVChvIoCoXpvAIQ8A&state=7vJu2JHZ6uBCob2044qbVA=="
+            params = {}
+            for param in mcp_callback_params.split('&'):
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    params[key] = value
+
+            auth_request_id = params.get('auth_request_id')
+            state = params.get('state')
+
+            if not auth_request_id:
+                raise ValueError("Missing auth_request_id")
+
+        except Exception as e:
+            logger.error(f"Failed to parse MCP callback parameters: {e}")
+            return redirect(f"{settings.SITE_URL}/auth/error?error=invalid_callback_params")
+
+        # Check if user is authenticated (should be after Google OAuth)
+        if not request.user.is_authenticated:
+            logger.error("User not authenticated after OAuth callback")
+            return redirect(f"{settings.SITE_URL}/auth/error?error=user_not_authenticated")
+
+        user = request.user
+
+        # Get MCP server URL from settings or environment
+        mcp_server_url = getattr(settings, 'MCP_SERVER_URL', 'http://localhost:8001')
+
+        # Build callback URL for MCP server
+        callback_url = f"{mcp_server_url}/oauth2/callback"
+        callback_url += f"?auth_request_id={auth_request_id}"
+        callback_url += f"&state={state}"
+        callback_url += f"&django_user_id={user.id}"
+        callback_url += f"&django_user_email={user.email}"
+
+        logger.info(f"Redirecting to MCP server callback: {callback_url}")
+
+        # Redirect to MCP server callback
+        return redirect(callback_url)
+
+    except Exception as e:
+        logger.error(f"MCP OAuth2 callback error: {e}")
+        return redirect(f"{settings.SITE_URL}/auth/error?error=internal_error")
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def validate_token(request):
@@ -1056,5 +1121,63 @@ def validate_token(request):
         logger.error(f"Error validating token: {str(e)}")
         return Response({
             'valid': False,
+            'error': 'Internal server error'
+        }, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def mcp_jwt_tokens(request):
+    """
+    Issue JWT tokens for MCP server authentication
+    Called by MCP server after OAuth completion
+    """
+    try:
+        user_id = request.data.get('user_id')
+        email = request.data.get('email')
+
+        if not user_id or not email:
+            return Response({
+                'error': 'user_id and email are required'
+            }, status=400)
+
+        # Get the user
+        from clients.models import CustomUser
+        try:
+            user = CustomUser.objects.get(id=user_id, email=email)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'error': 'User not found or email mismatch'
+            }, status=404)
+
+        # Generate JWT tokens
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+
+        # Add custom claims
+        refresh.payload.update({
+            'email': user.email,
+            'username': user.username,
+            'company_id': user.subscribed_company.id if user.subscribed_company else None,
+        })
+
+        access_token = refresh.access_token
+
+        return Response({
+            'access_token': str(access_token),
+            'refresh_token': str(refresh),
+            'token_type': 'Bearer',
+            'expires_in': 3600,  # 1 hour
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'company_id': user.subscribed_company.id if user.subscribed_company else None
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error issuing MCP JWT tokens: {str(e)}")
+        return Response({
             'error': 'Internal server error'
         }, status=500)

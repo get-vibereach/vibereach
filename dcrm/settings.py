@@ -417,6 +417,9 @@ if not DEBUG:
 
 SITE_URL = env('SITE_URL', default='http://localhost:8000')
 
+# MCP Server Configuration
+MCP_SERVER_URL = env('MCP_SERVER_URL', default='http://localhost:8001')
+
 
 # PyTracking configuration
 PYTRACKING_CONFIGURATION = {

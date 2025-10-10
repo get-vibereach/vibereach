@@ -11,33 +11,43 @@ graph TB
     subgraph "Browser Clients"
         A[Web Browser] -->|Session + CSRF| B[Django Auth Views]
     end
-    
+
     subgraph "MCP Clients"
-        C[MCP Client] -->|JWT Bearer Token| D[FastAPI MCP Server]
-        D -->|Validated User Context| E[Django API]
+        C[MCP Client] -->|OAuth2 Flow| D[FastAPI MCP Server]
+        D -->|JWT Bearer Token| E[Django API]
     end
-    
+
+    subgraph "OAuth2 Flow"
+        D -->|Redirect| F[Django Google OAuth]
+        F -->|Callback| G[MCP OAuth2 Callback]
+        G -->|User Info + JWT| D
+    end
+
     subgraph "Django Backend"
-        B --> F[Allauth + Session Auth]
-        E --> G[DRF + JWT Auth]
-        F --> H[User Database]
-        G --> H
+        B --> H[Allauth + Session Auth]
+        E --> I[DRF + JWT Auth]
+        F --> H
+        H --> J[User Database]
+        I --> J
     end
-    
+
     subgraph "Authentication Layer"
-        I[/auth/ endpoints] -->|JWT Tokens| J[JWKS Public Key]
-        D -->|Validate JWT| J
+        K[/auth/ endpoints] -->|JWT Tokens| L[JWKS Public Key]
+        D -->|Validate JWT| L
+        M[/mcp/oauth2/callback/] -->|User Info| D
+        N[/api/mcp/jwt/] -->|JWT Tokens| D
     end
 ```
 
 ### Key Features
 
-✅ **Dual Authentication**: Session-based for browsers + JWT for MCP clients  
-✅ **No Breaking Changes**: Existing authentication remains intact  
-✅ **Secure JWT**: RS256 signatures with JWKS endpoint  
-✅ **Google OAuth**: Works with existing Allauth setup  
-✅ **User Context**: MCP tools know which user is making requests  
-✅ **Rate Limiting**: Built-in API throttling  
+✅ **Dual Authentication**: Session-based for browsers + JWT for MCP clients
+✅ **Serverless OAuth Flow**: MCP clients authenticate via Google OAuth through Django
+✅ **No Breaking Changes**: Existing authentication remains intact
+✅ **Secure JWT**: RS256 signatures with JWKS endpoint
+✅ **Google OAuth**: Works with existing Allauth setup
+✅ **User Context**: MCP tools know which user is making requests
+✅ **Rate Limiting**: Built-in API throttling
 
 ---
 
@@ -82,22 +92,25 @@ python manage.py migrate
 
 #### Install MCP Server Dependencies
 ```bash
-cd mcp_server
+cd mcp-auth-test
 pip install -r requirements.txt
 ```
 
 #### Environment Configuration
 ```bash
 export DJANGO_BASE_URL="http://localhost:8000"
+# Server runs on port 10000 by default (configured in .env)
 ```
 
 #### Run MCP Server
 ```bash
-cd mcp_server
-python main.py
+cd mcp-auth-test
+python src/server.py
 # OR
-uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+uvicorn src.server:app --host 0.0.0.0 --port 10000 --reload
 ```
+
+**Note**: The MCP server runs on port **10000**, not 8001 as mentioned in some docs.
 
 ---
 
@@ -113,6 +126,8 @@ uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 | `/auth/token/refresh/` | POST | Refresh access token | Refresh Token |
 | `/api/.well-known/jwks.json` | GET | Get public keys for JWT validation | None |
 | `/api/validate-token/` | POST | Validate JWT token | None |
+| `/api/mcp/jwt/` | POST | Issue JWT tokens for MCP server | None |
+| `/mcp/oauth2/callback/` | GET | MCP OAuth2 callback handler | Authenticated |
 
 ### MCP Server Endpoints  
 
@@ -123,6 +138,70 @@ uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 | `/mcp/tools/send-message` | POST | Send message via Django | JWT |
 | `/mcp/tools/create-campaign` | POST | Create campaign | JWT |
 | `/mcp/tools/get-campaigns` | GET | Get user campaigns | JWT |
+
+---
+
+## 🔄 MCP OAuth2 Flow
+
+### Complete Authentication Flow
+
+1. **MCP Client Requests Authentication**
+   ```bash
+   # MCP client initiates OAuth2 flow
+   GET /oauth2/authorize?client_id=vscode_mcp_client&response_type=code&scope=openid profile email
+   ```
+
+2. **MCP Server Redirects to Django**
+   ```bash
+   # MCP server redirects to Django Google OAuth
+   Location: http://localhost:8000/oauth/google/?next=http://localhost:8000/mcp/oauth2/callback/?mcp_callback_params=auth_request_id=IrZ9FnVChvIoCoXpvAIQ8A&state=7vJu2JHZ6uBCob2044qbVA==
+   ```
+
+3. **User Authenticates with Google**
+   - User completes Google OAuth flow in browser
+   - Django receives callback and authenticates user
+
+4. **Django Redirects to MCP Callback**
+   ```bash
+   # Django redirects to MCP server with user info
+   Location: http://localhost:8001/oauth2/callback?auth_request_id=IrZ9FnVChvIoCoXpvAIQ8A&state=7vJu2JHZ6uBCob2044qbVA==&django_user_id=1&django_user_email=user@example.com
+   ```
+
+5. **MCP Server Exchanges Code for JWT**
+   ```bash
+   # MCP server requests JWT tokens from Django
+   POST /api/mcp/jwt/
+   {
+     "user_id": 1,
+     "email": "user@example.com"
+   }
+   ```
+
+6. **MCP Client Receives Authorization Code**
+   ```bash
+   # MCP server redirects client with authorization code
+   Location: http://127.0.0.1:33418?code=abc123&state=xyz789
+   ```
+
+7. **MCP Client Exchanges Code for Tokens**
+   ```bash
+   # Client exchanges code for JWT tokens
+   POST /oauth2/token
+   {
+     "grant_type": "authorization_code",
+     "client_id": "vscode_mcp_client",
+     "client_secret": "test_client_secret_123",
+     "code": "abc123"
+   }
+   ```
+
+### Environment Configuration
+
+Add to your `.env` file:
+```env
+# MCP Server Configuration
+MCP_SERVER_URL=http://localhost:8001
+```
 
 ---
 
@@ -267,8 +346,22 @@ SECURE_SSL_REDIRECT=True
 # Terminal 1: Django backend
 python manage.py runserver 8000
 
-# Terminal 2: MCP server
-cd mcp_server && python main.py
+# Terminal 2: MCP server (port 10000)
+cd mcp-auth-test && python src/server.py
+```
+
+### 2. Configure VS Code MCP Client
+Update your VS Code MCP configuration at `~/.config/Code/User/mcp.json`:
+```json
+{
+  "servers": {
+    "my-mcp-server": {
+      "url": "http://127.0.0.1:10000/mcp/",
+      "type": "http"
+    }
+  },
+  "inputs": []
+}
 ```
 
 ### 2. Test Authentication Flow
@@ -354,6 +447,35 @@ fetch('/auth/login/', {
   },
   body: JSON.stringify({email, password})
 })
+```
+
+#### 5. MCP OAuth Flow Issues
+
+**"400 Bad Request" on /oauth2/authorize:**
+```bash
+# Check MCP server logs for client registration
+# The MCP server auto-registers unknown clients in development mode
+# If you see "Invalid client_id", restart the MCP server
+```
+
+**"MCP client not redirecting to Django":**
+```bash
+# Verify MCP client configuration points to correct port (10000)
+curl http://localhost:10000/.well-known/oauth-authorization-server
+
+# Check Django MCP callback endpoint
+curl http://localhost:8000/mcp/oauth2/callback/
+```
+
+**"JWT tokens not issued":**
+```bash
+# Check Django MCP JWT endpoint
+curl -X POST http://localhost:8000/api/mcp/jwt/ \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 1, "email": "user@example.com"}'
+
+# Verify RSA keys are generated
+ls -la jwt_private_key.pem jwt_public_key.pem
 ```
 
 ### Debug Mode

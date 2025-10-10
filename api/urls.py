@@ -56,4 +56,5 @@ urlpatterns = [
     # JWT/MCP Authentication endpoints
     path('.well-known/jwks.json', views.jwks_endpoint, name='jwks'),
     path('validate-token/', views.validate_token, name='validate-token'),
+    path('mcp/jwt/', views.mcp_jwt_tokens, name='mcp-jwt-tokens'),
 ]
