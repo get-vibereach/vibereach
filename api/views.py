@@ -1159,6 +1159,10 @@ def mcp_jwt_tokens(request):
     Issue JWT tokens for MCP server authentication
     Called by MCP server after OAuth completion
     """
+    # Diagnostic logging
+    signing_key_present = bool(settings.SIMPLE_JWT.get('SIGNING_KEY'))
+    logger.info(f"Attempting to issue MCP JWT. Signing key present: {signing_key_present}")
+
     try:
         user_id = request.data.get('user_id')
         email = request.data.get('email')

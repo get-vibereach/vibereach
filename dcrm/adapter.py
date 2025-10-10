@@ -84,12 +84,17 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
                 raise ImmediateHttpResponse(redirect('login'))
 
             # 4. Build the final callback URL for the MCP server
+            from urllib.parse import urlencode
             mcp_server_url = getattr(settings, 'MCP_SERVER_URL', 'http://localhost:8001')
-            callback_url = f"{mcp_server_url}/oauth2/callback"
-            callback_url += f"?auth_request_id={mcp_auth_request_id}"
-            callback_url += f"&state={mcp_state}"
-            callback_url += f"&django_user_id={user.id}"
-            callback_url += f"&django_user_email={user.email}"
+            
+            params = {
+                'auth_request_id': mcp_auth_request_id,
+                'state': mcp_state,
+                'django_user_id': user.id,
+                'django_user_email': user.email
+            }
+            
+            callback_url = f"{mcp_server_url}/oauth2/callback?{urlencode(params)}"
 
             # 5. Immediately redirect to the MCP server to complete the flow
             raise ImmediateHttpResponse(redirect(callback_url))

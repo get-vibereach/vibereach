@@ -239,6 +239,19 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 import os
 
+# Read JWT keys from files in the root directory
+jwt_private_key = ''
+jwt_public_key = ''
+try:
+    with open(BASE_DIR / 'jwt_private_key.pem', 'r') as f:
+        jwt_private_key = f.read()
+    with open(BASE_DIR / 'jwt_public_key.pem', 'r') as f:
+        jwt_public_key = f.read()
+except FileNotFoundError:
+    # In a production environment, you might want to log this as a critical error
+    # For development, we'll allow it to fail silently and be caught by the app later
+    pass
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -247,8 +260,8 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
 
     'ALGORITHM': 'RS256',
-    'SIGNING_KEY': env('JWT_PRIVATE_KEY', default=''),  # RS256 private key
-    'VERIFYING_KEY': env('JWT_PUBLIC_KEY', default=''),  # RS256 public key
+    'SIGNING_KEY': jwt_private_key,
+    'VERIFYING_KEY': jwt_public_key,
     'AUDIENCE': env('JWT_AUDIENCE', default='cccrm-api'),
     'ISSUER': env('JWT_ISSUER', default='cccrm-backend'),
 
