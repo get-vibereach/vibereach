@@ -54,8 +54,47 @@ class CustomEmailAdapter(DefaultAccountAdapter):
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     def pre_social_login(self, request, sociallogin):
         """
-        Handle Google login with separate google_email field
+        This method is called after successful social login, but before the user is
+        actually logged into the system.
+
+        We hook into it to check if this social login is part of the MCP OAuth flow.
         """
+        # Check if this is an MCP flow by looking for our session variables
+        mcp_auth_request_id = request.session.get('mcp_auth_request_id')
+        mcp_state = request.session.get('mcp_state')
+
+        if mcp_auth_request_id and mcp_state:
+            # This is an MCP flow.
+            
+            # 1. Clean up the session
+            del request.session['mcp_auth_request_id']
+            del request.session['mcp_state']
+
+            # 2. Get user details from the social login
+            google_email = sociallogin.account.extra_data.get('email')
+            if not google_email:
+                messages.error(request, 'Unable to retrieve email from Google account for MCP flow.')
+                raise ImmediateHttpResponse(redirect('login'))
+
+            # 3. Find the corresponding user in our system
+            try:
+                user = User.objects.get(google_email=google_email, google_login_enabled=True)
+            except User.DoesNotExist:
+                messages.error(request, 'This Google account is not linked to an active user.')
+                raise ImmediateHttpResponse(redirect('login'))
+
+            # 4. Build the final callback URL for the MCP server
+            mcp_server_url = getattr(settings, 'MCP_SERVER_URL', 'http://localhost:8001')
+            callback_url = f"{mcp_server_url}/oauth2/callback"
+            callback_url += f"?auth_request_id={mcp_auth_request_id}"
+            callback_url += f"&state={mcp_state}"
+            callback_url += f"&django_user_id={user.id}"
+            callback_url += f"&django_user_email={user.email}"
+
+            # 5. Immediately redirect to the MCP server to complete the flow
+            raise ImmediateHttpResponse(redirect(callback_url))
+
+        # If not an MCP flow, proceed with the original logic for normal site logins
         # Only check for Google provider
         if sociallogin.account.provider != 'google':
             return
@@ -103,6 +142,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
                 'No account found linked to this Google email. Please login with your business email and link your Google account in settings.'
             )
             raise ImmediateHttpResponse(redirect('login'))
+
 
     def save_user(self, request, sociallogin, form=None):
         """

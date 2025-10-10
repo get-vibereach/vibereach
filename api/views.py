@@ -1008,12 +1008,39 @@ def jwks_endpoint(request):
         }, status=500)
 
 
+from django.shortcuts import redirect
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def mcp_google_login_start(request):
+    """
+    Step 1 of the MCP OAuth flow.
+    Saves the MCP server's state in the session, then starts the allauth Google login flow.
+    """
+    auth_request_id = request.GET.get('auth_request_id')
+    state = request.GET.get('state')
+
+    if not auth_request_id or not state:
+        logger.error("MCP Google login start failed: missing auth_request_id or state")
+        # Redirect to an error page or show an error message
+        return redirect(f"{settings.SITE_URL}/auth/error?error=missing_mcp_params")
+
+    # Store the MCP context in the session
+    request.session['mcp_auth_request_id'] = auth_request_id
+    request.session['mcp_state'] = state
+    
+    logger.info(f"MCP OAuth flow started. Stored auth_request_id: {auth_request_id} in session.")
+
+    # Redirect to the allauth google login page
+    google_login_url = '/oauth/google/login/'
+    return redirect(google_login_url)
+
+
 def mcp_oauth2_callback(request):
     """
     MCP OAuth2 callback endpoint.
     Handles the callback from Google OAuth and redirects back to MCP server with user info.
     """
-    from django.shortcuts import redirect
     from django.contrib.auth import get_user_model
     from urllib.parse import urlparse, parse_qs
 

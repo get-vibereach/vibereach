@@ -26,6 +26,8 @@ urlpatterns = [
     path('oauth/', include('allauth.urls')),
     path('accounts/', include('clients.urls')),
 
+    path('mcp/google-login/', api_views.mcp_google_login_start, name='mcp-google-login-start'),
+
     # MCP OAuth2 callback endpoint
     path('mcp/oauth2/callback/', api_views.mcp_oauth2_callback, name='mcp-oauth2-callback'),
 
