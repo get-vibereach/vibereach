@@ -9,6 +9,7 @@ from django.template import TemplateDoesNotExist
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.contrib.auth import get_user_model
+from urllib.parse import urlencode
 
 User = get_user_model()
 
@@ -65,39 +66,46 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
 
         if mcp_auth_request_id and mcp_state:
             # This is an MCP flow.
-            
-            # 1. Clean up the session
-            del request.session['mcp_auth_request_id']
-            del request.session['mcp_state']
+            mcp_server_url = getattr(settings, 'MCP_SERVER_URL', 'http://localhost:8001')
 
-            # 2. Get user details from the social login
+            # Get user details from the social login
             google_email = sociallogin.account.extra_data.get('email')
             if not google_email:
                 messages.error(request, 'Unable to retrieve email from Google account for MCP flow.')
                 raise ImmediateHttpResponse(redirect('login'))
 
-            # 3. Find the corresponding user in our system
             try:
+                # Find the corresponding user in our system
                 user = User.objects.get(google_email=google_email, google_login_enabled=True)
+
+                # Success: Build the final callback URL for the MCP server
+                params = {
+                    'auth_request_id': mcp_auth_request_id,
+                    'state': mcp_state,
+                    'django_user_id': user.id,
+                    'django_user_email': user.email
+                }
+                callback_url = f"{mcp_server_url}/oauth2/callback?{urlencode(params)}"
+                
+                # Clean up session and redirect
+                del request.session['mcp_auth_request_id']
+                del request.session['mcp_state']
+                raise ImmediateHttpResponse(redirect(callback_url))
+
             except User.DoesNotExist:
-                messages.error(request, 'This Google account is not linked to an active user.')
-                raise ImmediateHttpResponse(redirect('login'))
-
-            # 4. Build the final callback URL for the MCP server
-            from urllib.parse import urlencode
-            mcp_server_url = getattr(settings, 'MCP_SERVER_URL', 'http://localhost:8001')
-            
-            params = {
-                'auth_request_id': mcp_auth_request_id,
-                'state': mcp_state,
-                'django_user_id': user.id,
-                'django_user_email': user.email
-            }
-            
-            callback_url = f"{mcp_server_url}/oauth2/callback?{urlencode(params)}"
-
-            # 5. Immediately redirect to the MCP server to complete the flow
-            raise ImmediateHttpResponse(redirect(callback_url))
+                # Failure: User not found. Redirect back to MCP server with an error.
+                params = {
+                    'auth_request_id': mcp_auth_request_id,
+                    'state': mcp_state,
+                    'error': 'access_denied',
+                    'error_description': 'This Google account is not linked to an active user in the system.'
+                }
+                error_callback_url = f"{mcp_server_url}/oauth2/callback?{urlencode(params)}"
+                
+                # Clean up session and redirect
+                del request.session['mcp_auth_request_id']
+                del request.session['mcp_state']
+                raise ImmediateHttpResponse(redirect(error_callback_url))
 
         # If not an MCP flow, proceed with the original logic for normal site logins
         # Only check for Google provider
