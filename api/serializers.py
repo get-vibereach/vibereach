@@ -176,7 +176,7 @@ User = get_user_model()
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email", "position", "phone_number", "linkedin_profile", "onboarding_completed"]
+        fields = ["first_name", "last_name", "email", "position", "phone_number", "linkedin_profile", "onboarding_completed", "google_login_enabled", "google_email"]
 
 class EmailSerializer(serializers.Serializer):
     email = serializers.EmailField()

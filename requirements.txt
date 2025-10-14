@@ -35,3 +35,6 @@ django-mathfilters==1.0.0
 python-telegram-bot==22.3
 django-admin-honeypot-2024==1.0.0
 django-redis==6.0.0
+django-allauth[socialaccount]
+dj-rest-auth==7.0.1
+cryptography==41.0.7

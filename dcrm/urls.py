@@ -4,7 +4,8 @@ from django.shortcuts import redirect, render
 
 from scheduler.views import scheduler_inngest_view_path
 from campaign.views import account_settings_view
-from .views import health_check, redirect_to_login, home_view, home_ar_view
+from .views import health_check, home_view, home_ar_view
+from api import views as api_views
 
 
 
@@ -20,7 +21,20 @@ urlpatterns = [
     
     path('campaign/', include('campaign.urls')),
     path('api/', include('api.urls')),
+
+    # Existing browser-based authentication
+    path('oauth/', include('allauth.urls')),
     path('accounts/', include('clients.urls')),
+
+    path('mcp/google-login/', api_views.mcp_google_login_start, name='mcp-google-login-start'),
+
+    # MCP OAuth2 callback endpoint
+    path('mcp/oauth2/callback/', api_views.mcp_oauth2_callback, name='mcp-oauth2-callback'),
+
+    # New API-based authentication for MCP clients
+    path('auth/', include('dj_rest_auth.urls')),
+    path('auth/registration/', include('dj_rest_auth.registration.urls')),
+
     path('support/', include('support.urls')),
     path('feedback/', include('feedback.urls')),
 

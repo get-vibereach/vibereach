@@ -1,9 +1,16 @@
 import datetime
 import json
 import logging
+import base64
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django.conf import settings
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from api.utils import auto_unassign_if_list_empty
 from clients.models import Product, EmailAccount
 from campaign.models import Campaign, CampaignLead, CampaignOptions, CampaignStats, Lead, LeadList, Message, MessageAssignment, Schedule
@@ -926,3 +933,282 @@ def refresh_campaign_daily_stats(request):
 @api_view(['POST'])
 def launch_inggest_test(request):
     pass
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def jwks_endpoint(request):
+    """
+    JWKS endpoint for MCP server to validate JWT tokens
+    Returns the public key in JWKS format
+    """
+    try:
+        private_key_pem = settings.SIMPLE_JWT.get('SIGNING_KEY', '')
+        if not private_key_pem:
+            return Response({
+                'error': 'JWT signing key not configured'
+            }, status=500)
+
+        # Load the private key to extract public key
+        try:
+            private_key = load_pem_private_key(
+                private_key_pem.encode('utf-8'),
+                password=None,
+            )
+            public_key = private_key.public_key()
+            
+            # Serialize public key to PEM format
+            public_key_pem = public_key.public_key_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            
+            # Convert to base64url for JWKS
+            public_key_der = public_key.public_key_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            
+            # For RSA keys, we need to extract n and e values
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            if isinstance(public_key, rsa.RSAPublicKey):
+                public_numbers = public_key.public_numbers()
+                n = base64.urlsafe_b64encode(public_numbers.n.to_bytes((public_numbers.n.bit_length() + 7) // 8, 'big')).decode('utf-8').rstrip('=')
+                e = base64.urlsafe_b64encode(public_numbers.e.to_bytes((public_numbers.e.bit_length() + 7) // 8, 'big')).decode('utf-8').rstrip('=')
+                
+                jwks = {
+                    "keys": [
+                        {
+                            "kty": "RSA",
+                            "use": "sig",
+                            "alg": "RS256",
+                            "kid": "cccrm-jwt-key",
+                            "n": n,
+                            "e": e
+                        }
+                    ]
+                }
+                
+                return Response(jwks, content_type='application/json')
+            else:
+                return Response({
+                    'error': 'Only RSA keys are supported for JWKS'
+                }, status=500)
+                
+        except Exception as key_error:
+            logger.error(f"Error processing JWT key: {str(key_error)}")
+            return Response({
+                'error': 'Invalid JWT signing key format'
+            }, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error generating JWKS: {str(e)}")
+        return Response({
+            'error': 'Internal server error'
+        }, status=500)
+
+
+from django.shortcuts import redirect
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def mcp_google_login_start(request):
+    """
+    Step 1 of the MCP OAuth flow.
+    Saves the MCP server's state in the session, then starts the allauth Google login flow.
+    """
+    auth_request_id = request.GET.get('auth_request_id')
+    state = request.GET.get('state')
+
+    if not auth_request_id or not state:
+        logger.error("MCP Google login start failed: missing auth_request_id or state")
+        # Redirect to an error page or show an error message
+        return redirect(f"{settings.SITE_URL}/auth/error?error=missing_mcp_params")
+
+    # Store the MCP context in the session
+    request.session['mcp_auth_request_id'] = auth_request_id
+    request.session['mcp_state'] = state
+    
+    logger.info(f"MCP OAuth flow started. Stored auth_request_id: {auth_request_id} in session.")
+
+    # Redirect to the allauth google login page
+    google_login_url = '/oauth/google/login/'
+    return redirect(google_login_url)
+
+
+def mcp_oauth2_callback(request):
+    """
+    MCP OAuth2 callback endpoint.
+    Handles the callback from Google OAuth and redirects back to MCP server with user info.
+    """
+    from django.contrib.auth import get_user_model
+    from urllib.parse import urlparse, parse_qs
+
+    User = get_user_model()
+
+    try:
+        # Get callback parameters from the URL
+        mcp_callback_params = request.GET.get('mcp_callback_params', '')
+
+        if not mcp_callback_params:
+            logger.error("No MCP callback parameters provided")
+            return redirect(f"{settings.SITE_URL}/auth/error?error=missing_callback_params")
+
+        # Parse the callback parameters
+        try:
+            # mcp_callback_params format: "auth_request_id=IrZ9FnVChvIoCoXpvAIQ8A&state=7vJu2JHZ6uBCob2044qbVA=="
+            params = {}
+            for param in mcp_callback_params.split('&'):
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    params[key] = value
+
+            auth_request_id = params.get('auth_request_id')
+            state = params.get('state')
+
+            if not auth_request_id:
+                raise ValueError("Missing auth_request_id")
+
+        except Exception as e:
+            logger.error(f"Failed to parse MCP callback parameters: {e}")
+            return redirect(f"{settings.SITE_URL}/auth/error?error=invalid_callback_params")
+
+        # Check if user is authenticated (should be after Google OAuth)
+        if not request.user.is_authenticated:
+            logger.error("User not authenticated after OAuth callback")
+            return redirect(f"{settings.SITE_URL}/auth/error?error=user_not_authenticated")
+
+        user = request.user
+
+        # Get MCP server URL from settings or environment
+        mcp_server_url = getattr(settings, 'MCP_SERVER_URL', 'http://localhost:8001')
+
+        # Build callback URL for MCP server
+        callback_url = f"{mcp_server_url}/oauth2/callback"
+        callback_url += f"?auth_request_id={auth_request_id}"
+        callback_url += f"&state={state}"
+        callback_url += f"&django_user_id={user.id}"
+        callback_url += f"&django_user_email={user.email}"
+
+        logger.info(f"Redirecting to MCP server callback: {callback_url}")
+
+        # Redirect to MCP server callback
+        return redirect(callback_url)
+
+    except Exception as e:
+        logger.error(f"MCP OAuth2 callback error: {e}")
+        return redirect(f"{settings.SITE_URL}/auth/error?error=internal_error")
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_token(request):
+    """
+    Alternative token validation endpoint for MCP server
+    if JWT validation is not used directly
+    """
+    from rest_framework_simplejwt.tokens import AccessToken
+    from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+    
+    token = request.data.get('token')
+    if not token:
+        return Response({
+            'valid': False,
+            'error': 'Token is required'
+        }, status=400)
+    
+    try:
+        # Validate the token
+        access_token = AccessToken(token)
+        user_id = access_token.payload.get('user_id')
+        
+        # Get user details
+        from clients.models import CustomUser
+        try:
+            user = CustomUser.objects.get(id=user_id)
+            return Response({
+                'valid': True,
+                'user_id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'company_id': user.subscribed_company.id if user.subscribed_company else None
+            })
+        except CustomUser.DoesNotExist:
+            return Response({
+                'valid': False,
+                'error': 'User not found'
+            }, status=404)
+            
+    except (InvalidToken, TokenError) as e:
+        return Response({
+            'valid': False,
+            'error': f'Invalid token: {str(e)}'
+        }, status=401)
+    except Exception as e:
+        logger.error(f"Error validating token: {str(e)}")
+        return Response({
+            'valid': False,
+            'error': 'Internal server error'
+        }, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def mcp_jwt_tokens(request):
+    """
+    Issue JWT tokens for MCP server authentication
+    Called by MCP server after OAuth completion
+    """
+    # Diagnostic logging
+    signing_key_present = bool(settings.SIMPLE_JWT.get('SIGNING_KEY'))
+    logger.info(f"Attempting to issue MCP JWT. Signing key present: {signing_key_present}")
+
+    try:
+        user_id = request.data.get('user_id')
+        email = request.data.get('email')
+
+        if not user_id or not email:
+            return Response({
+                'error': 'user_id and email are required'
+            }, status=400)
+
+        # Get the user
+        from clients.models import CustomUser
+        try:
+            user = CustomUser.objects.get(id=user_id, email=email)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'error': 'User not found or email mismatch'
+            }, status=404)
+
+        # Generate JWT tokens
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+
+        # Add custom claims
+        refresh.payload.update({
+            'email': user.email,
+            'username': user.username,
+            'company_id': user.subscribed_company.id if user.subscribed_company else None,
+        })
+
+        access_token = refresh.access_token
+
+        return Response({
+            'access_token': str(access_token),
+            'refresh_token': str(refresh),
+            'token_type': 'Bearer',
+            'expires_in': 3600,  # 1 hour
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'company_id': user.subscribed_company.id if user.subscribed_company else None
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error issuing MCP JWT tokens: {str(e)}")
+        return Response({
+            'error': 'Internal server error'
+        }, status=500)

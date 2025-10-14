@@ -3,6 +3,8 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.http import Http404, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db.models import Count, Q, Min, Sum
 from django.core.paginator import Paginator
 import pytz
@@ -447,9 +449,48 @@ def overall_dashboard_view(request):
     return render(request, "app/overall-dashboard.html")
 
 
+@login_required
 def account_settings_view(request):
-    """Account settings page"""
-    return render(request, "app/account/account-settings.html")
+    """Account settings page with Google account linking functionality"""
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'disconnect_google':
+            # Disconnect Google account
+            request.user.google_email = None
+            request.user.google_login_enabled = False
+            request.user.save()
+            
+            messages.success(request, 'Google account has been disconnected from your account.')
+            return redirect('account_settings')
+            
+        elif action == 'disable_google_login':
+            # Disable Google login but keep the linked email
+            request.user.google_login_enabled = False
+            request.user.save()
+            
+            messages.success(request, 'Google login has been disabled.')
+            return redirect('account_settings')
+            
+        elif action == 'enable_google_login':
+            # Enable Google login if email is linked
+            if request.user.google_email:
+                request.user.google_login_enabled = True
+                request.user.save()
+                messages.success(request, 'Google login has been enabled.')
+            else:
+                messages.error(request, 'No Google account is linked. Please connect your Google account first.')
+            return redirect('account_settings')
+    
+    context = {
+        'user': request.user,
+        'google_email_linked': bool(request.user.google_email),
+        'google_email': request.user.google_email,
+        'google_login_enabled': request.user.google_login_enabled,
+    }
+    
+    return render(request, "app/account/account-settings.html", context)
 
 
 def tracking_test_view(request):

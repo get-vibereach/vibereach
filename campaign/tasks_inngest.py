@@ -915,3 +915,34 @@ def notify_admin_on_new_user_task(ctx: inngest.Context):
         logger.error(f"Could not send admin notification: {e}")
         return {"status": "error", "message": str(e)}
     return {"status": "success"}
+
+
+
+@inngest_client.create_function(
+    fn_id="send_transactional_email",
+    trigger=inngest.TriggerEvent(event="emails/send.transactional"),
+)
+def send_transactional_email_task(ctx: inngest.Context):
+    """
+    Inngest function to send a transactional email.
+    """
+    from django.core.mail import send_mail as django_send_mail
+    try:
+        subject = ctx.event.data.get("subject")
+        message = ctx.event.data.get("message")
+        from_email = ctx.event.data.get("from_email")
+        recipient_list = ctx.event.data.get("recipient_list")
+        html_message = ctx.event.data.get("html_message")
+
+        django_send_mail(
+            subject=subject,
+            message=message,
+            from_email=from_email,
+            recipient_list=recipient_list,
+            html_message=html_message,
+        )
+        logger.info(f"📧 Transactional email sent to {recipient_list}")
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"💥 Error sending transactional email: {str(e)}")
+        return {"status": "error", "message": str(e)}

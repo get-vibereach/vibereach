@@ -91,12 +91,12 @@
                 <!-- Divider -->
                 <div class="divider my-4">OR</div>
 
-                <!-- Social Logins (Disabled for Beta) -->
+                <!-- Social Logins -->
                 <div class="form-control">
-                    <button id="google-login-btn" class="btn btn-outline btn-disabled" disabled>
+                    <a href="/oauth/google/login/" class="btn btn-outline" id="google-login-btn">
                         <img src="https://www.google.com/favicon.ico" alt="Google" class="w-4 h-4 mr-2">
                         Log In with Google
-                    </button>
+                    </a>
                 </div>
 
                 <!-- Sign Up Link (Disabled for Beta) -->
@@ -183,12 +183,7 @@
             // --- Event Listeners for Disabled Elements ---
             const disabledMessage = 'Not available during beta';
 
-            if (googleBtn) {
-                googleBtn.addEventListener('click', (event) => {
-                    event.preventDefault(); // Prevent any default button action
-                    showTooltip(googleBtn, disabledMessage);
-                });
-            }
+            // Remove Google button event listener since it's now enabled
 
             if (signupLink) {
                 signupLink.addEventListener('click', (event) => {

@@ -34,7 +34,20 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'allauth',
+    'allauth.account',
+
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
     'rest_framework',
+    'rest_framework.authtoken',
+    'rest_framework_simplejwt',
+    
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+    
     'import_export',
     'django_htmx',
     'mathfilters',
@@ -51,9 +64,31 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'clients.CustomUser'
 
 # Authentication settings
-LOGIN_URL = '/accounts/login/'
+LOGIN_URL = '/oauth/login/'
 LOGOUT_REDIRECT_URL = '/'
 
+
+
+# Django Allauth Config
+LOGIN_REDIRECT_URL = "/account-settings/"
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+SOCIALACCOUNT_LOGIN_ON_GET = True
+ACCOUNT_ADAPTER = 'dcrm.adapter.CustomEmailAdapter'
+SOCIALACCOUNT_ADAPTER = 'dcrm.adapter.CustomSocialAccountAdapter'
+# Prevent automatic account creation via Google login
+SOCIALACCOUNT_AUTO_SIGNUP = False
+# ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# ACCOUNT_EMAIL_SUBJECT_PREFIX = "[CFE] "
+# ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
+
+
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin, regardless of `allauth`
+    'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods, such as login by email
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -61,6 +96,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    
+    'allauth.account.middleware.AccountMiddleware',
+
     'dcrm.middleware.CustomLoginRequiredMiddleware',
     'dcrm.middleware.RequestMiddleware',
     'dcrm.middleware.ViewOnlyMiddleware',
@@ -69,12 +107,27 @@ MIDDLEWARE = [
     'django_htmx.middleware.HtmxMiddleware',
 ]
 
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
 ROOT_URLCONF = 'dcrm.urls'
 
 OPEN_URLS = [
     r"^/api/inngest",
     r"^/campaign/tracking/.*$",
     r"^/admin/.*$",
+    r"^/oauth/password/reset/.*$",
 ]
 
 
@@ -163,6 +216,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',  # existing browser-based
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # new for MCP/API
+    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
@@ -176,6 +233,74 @@ REST_FRAMEWORK = {
         'user': '1000/day'
     }
 }
+
+
+# JWT Configuration for dj-rest-auth
+from datetime import timedelta
+import os
+
+# Read JWT keys from files in the root directory
+jwt_private_key = ''
+jwt_public_key = ''
+try:
+    with open(BASE_DIR / 'jwt_private_key.pem', 'r') as f:
+        jwt_private_key = f.read()
+    with open(BASE_DIR / 'jwt_public_key.pem', 'r') as f:
+        jwt_public_key = f.read()
+except FileNotFoundError:
+    # In a production environment, you might want to log this as a critical error
+    # For development, we'll allow it to fail silently and be caught by the app later
+    pass
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+
+    'ALGORITHM': 'RS256',
+    'SIGNING_KEY': jwt_private_key,
+    'VERIFYING_KEY': jwt_public_key,
+    'AUDIENCE': env('JWT_AUDIENCE', default='cccrm-api'),
+    'ISSUER': env('JWT_ISSUER', default='cccrm-backend'),
+
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+
+    'JTI_CLAIM': 'jti',
+
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+}
+
+# dj-rest-auth configuration
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'cccrm-access-token',
+    'JWT_AUTH_REFRESH_COOKIE': 'cccrm-refresh-token',
+    'JWT_AUTH_HTTPONLY': False,
+    'JWT_AUTH_SECURE': not DEBUG,
+    'JWT_AUTH_SAMESITE': 'Lax',
+    
+    'USER_DETAILS_SERIALIZER': 'dj_rest_auth.serializers.UserDetailsSerializer',
+    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.LoginSerializer',
+    
+    'SESSION_LOGIN': False,  # Disable session login for API endpoints
+    'TOKEN_MODEL': None,  # Use JWT instead of tokens
+}
+
+# Allauth configuration for API endpoints (modern format)
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']  # email required, username not required
 
 
 # Password validation
@@ -304,6 +429,9 @@ if not DEBUG:
 
 
 SITE_URL = env('SITE_URL', default='http://localhost:8000')
+
+# MCP Server Configuration
+MCP_SERVER_URL = env('MCP_SERVER_URL', default='http://localhost:8001')
 
 
 # PyTracking configuration
