@@ -24,6 +24,8 @@ services:
       - .:/app
       - static_volume:/app/staticfiles
       - ./logs_blue:/app/logs
+      - ./jwt_private_key.pem:/app/jwt_private_key.pem:ro
+      - ./jwt_public_key.pem:/app/jwt_public_key.pem:ro
     depends_on:
       db:
         condition: service_healthy
@@ -58,6 +60,8 @@ services:
       - .:/app
       - static_volume:/app/staticfiles
       - ./logs_green:/app/logs
+      - ./jwt_private_key.pem:/app/jwt_private_key.pem:ro
+      - ./jwt_public_key.pem:/app/jwt_public_key.pem:ro
     depends_on:
       db:
         condition: service_healthy
