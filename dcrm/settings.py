@@ -247,10 +247,14 @@ try:
         jwt_private_key = f.read()
     with open(BASE_DIR / 'jwt_public_key.pem', 'r') as f:
         jwt_public_key = f.read()
-except FileNotFoundError:
-    # In a production environment, you might want to log this as a critical error
-    # For development, we'll allow it to fail silently and be caught by the app later
-    pass
+except FileNotFoundError as e:
+    RED = "\033[91m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+    print(f"{BOLD}{RED}[CRITICAL] JWT key file not found: {e}{RESET}")
+    jwt_private_key = ''
+    jwt_public_key = ''
+
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
