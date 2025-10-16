@@ -3,39 +3,49 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import (
 	ProductSerializer, EmailAccountSerializer, CampaignSerializer,
 	MessageSerializer, MessageAssignmentSerializer, LeadListSerializer,
-	LeadSerializer, ScheduleSerializer, CampaignOptionsSerializer, CampaignStatsSerializer
+	LeadSerializer, ScheduleSerializer, CampaignOptionsSerializer, CampaignStatsSerializer,
+	CampaignDailyStatsSerializer
 )
 from clients.models import Product, EmailAccount
-from campaign.models import Campaign, CampaignLead, CampaignOptions, CampaignStats, Lead, LeadList, Message, MessageAssignment, Schedule
+from campaign.models import Campaign, CampaignLead, CampaignOptions, CampaignStats, CampaignDailyStats, Lead, LeadList, Message, MessageAssignment, Schedule
 
 # Mixin to filter by user's subscribed_company
 class SubscribedCompanyQuerysetMixin:
 	def get_queryset(self):
-		model = self.queryset.model
-		user_company = self.request.user.subscribed_company
-		if model is Product:
-			return self.queryset.filter(subscribed_company=user_company)
-		if model is EmailAccount:
-			return self.queryset.filter(subscribed_company=user_company)
-		if model is Campaign:
-			return self.queryset.filter(subscribed_company=user_company)
-		if model is LeadList:
-			return self.queryset.filter(subscribed_company=user_company)
-		if model is Lead:
-			return self.queryset.filter(subscribed_company=user_company)
-		if model is Schedule:
-			return self.queryset.filter(subscribed_company=user_company)
-		if model is CampaignOptions:
-			return self.queryset.filter(campaign__subscribed_company=user_company)
-		if model is CampaignStats:
-			return self.queryset.filter(campaign__subscribed_company=user_company)
-		if model is Message:
-			return self.queryset.filter(product__subscribed_company=user_company)
-		if model is CampaignLead:
-			return self.queryset.filter(campaign__subscribed_company=user_company)
-		if model is MessageAssignment:
-			return self.queryset.filter(campaign__subscribed_company=user_company)
-		return self.queryset.none()
+			model = self.queryset.model
+			user_company = self.request.user.subscribed_company
+			if model is Product:
+				return self.queryset.filter(subscribed_company=user_company)
+			if model is LeadList:
+				return self.queryset.filter(subscribed_company=user_company)
+			if model is Lead:
+				return self.queryset.filter(subscribed_company=user_company)
+			if model is Message:
+				# Message is related to Product, which is related to SubscribedCompany
+				return self.queryset.filter(product__subscribed_company=user_company)
+			if model is Campaign:
+				return self.queryset.filter(subscribed_company=user_company)
+			if model is CampaignLead:
+				# CampaignLead is related to Campaign, which is related to SubscribedCompany
+				return self.queryset.filter(campaign__subscribed_company=user_company)
+			if model is MessageAssignment:
+				# MessageAssignment is related to Campaign, which is related to SubscribedCompany
+				return self.queryset.filter(campaign__subscribed_company=user_company)
+			if model is Schedule:
+				# Schedule is related to Campaign, which is related to SubscribedCompany
+				return self.queryset.filter(campaign__subscribed_company=user_company)
+			if model is CampaignOptions:
+				# CampaignOptions is related to Campaign, which is related to SubscribedCompany
+				return self.queryset.filter(campaign__subscribed_company=user_company)
+			if model is CampaignStats:
+				# CampaignStats is related to Campaign, which is related to SubscribedCompany
+				return self.queryset.filter(campaign__subscribed_company=user_company)
+			if model is CampaignDailyStats:
+				# CampaignDailyStats is related to Campaign, which is related to SubscribedCompany
+				return self.queryset.filter(campaign__subscribed_company=user_company)
+			if model is EmailAccount:
+				return self.queryset.filter(subscribed_company=user_company)
+			return self.queryset.none()
 
 # Product Views
 class ProductListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
@@ -124,6 +134,19 @@ class CampaignStatsRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, gen
 	queryset = CampaignStats.objects.all()
 	serializer_class = CampaignStatsSerializer
 	permission_classes = [IsAuthenticated]
+	
+
+# CampaignDailyStats Views
+class CampaignDailyStatsListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
+	queryset = CampaignDailyStats.objects.all()
+	serializer_class = CampaignDailyStatsSerializer
+	permission_classes = [IsAuthenticated]
+
+class CampaignDailyStatsRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
+	queryset = CampaignDailyStats.objects.all()
+	serializer_class = CampaignDailyStatsSerializer
+	permission_classes = [IsAuthenticated]
+
 
 # Message Views
 class MessageListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):

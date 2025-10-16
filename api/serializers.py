@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from clients.models import Product, EmailAccount, CustomUser, SubscribedCompany, Plan, Subscription, BillingHistory
-from campaign.models import Campaign, CampaignStats, Message, MessageAssignment, LeadList, Lead, Schedule, CampaignOptions
+from campaign.models import Campaign, CampaignStats, CampaignDailyStats, Message, MessageAssignment, LeadList, Lead, Schedule, CampaignOptions
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -65,6 +65,11 @@ class CampaignOptionsSerializer(serializers.ModelSerializer):
 class CampaignStatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CampaignStats
+        fields = '__all__'
+
+class CampaignDailyStatsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CampaignDailyStats
         fields = '__all__'
 
 
