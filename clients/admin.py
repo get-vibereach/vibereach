@@ -1,9 +1,24 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import Plan, Subscription, BillingHistory, CustomUser, SubscribedCompany, Product, EmailAccount, SignupToken, LoginToken
 from django.utils.html import format_html
 from django.urls import reverse
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
+def generate_jwt_token(modeladmin, request, queryset):
+    if queryset.count() > 1:
+        modeladmin.message_user(request, "Please select only one user at a time to generate a token.", messages.WARNING)
+        return
+
+    user = queryset.first()
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
+    
+    modeladmin.message_user(request, format_html("Access Token for {}: <br><textarea rows='5' cols='80' readonly>{}</textarea>", user.email, access_token), messages.SUCCESS)
+
+generate_jwt_token.short_description = "Generate JWT Access Token"
 
 
 @admin.register(LoginToken)
@@ -64,6 +79,7 @@ class CustomUserAdmin(UserAdmin):
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
     model = CustomUser
+    actions = [generate_jwt_token]
 
     # Display fields in the list view
     list_display = ('id', 'username', 'email', 'first_name', 'last_name', 'subscribed_company', 'is_staff', 'is_active', 'onboarding_completed', 'google_login_enabled')
@@ -141,5 +157,3 @@ class EmailAccountAdmin(admin.ModelAdmin):
     list_display = ('id', 'subscribed_company', 'email', 'connection_type', 'status', 'emails_sent', 'daily_limit')
     search_fields = ('email', 'subscribed_company__name', )
     list_filter = ('subscribed_company', 'connection_type', 'status',)
-    
-    

@@ -77,3 +77,6 @@ deploy.sh
 action.sh
 
 templates/ar
+
+# docs
+core_api_docs.md
