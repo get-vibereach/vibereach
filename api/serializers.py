@@ -9,21 +9,38 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = '__all__'
+        read_only_fields = ['subscribed_company']
 
 class EmailAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmailAccount
         fields = '__all__'
+        read_only_fields = ['subscribed_company']
 
 class CampaignSerializer(serializers.ModelSerializer):
     class Meta:
         model = Campaign
         fields = '__all__'
+        read_only_fields = ['subscribed_company']
+
+    def validate_product(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This product does not belong to your company.")
+        return value
 
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = '__all__'
+
+    def validate_product(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This product does not belong to your company.")
+        return value
 
 
 class MessageAssignmentSerializer(serializers.ModelSerializer):
@@ -31,11 +48,26 @@ class MessageAssignmentSerializer(serializers.ModelSerializer):
         model = MessageAssignment
         fields = '__all__'
 
+    def validate_campaign(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This campaign does not belong to your company.")
+        return value
+    
+    def validate_message(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.product.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("The product associated with this message does not belong to your company.")
+        return value
+
 
 class LeadListSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeadList
         fields = '__all__'
+        read_only_fields = ['subscribed_company']
 
 
 class LeadSerializer(serializers.ModelSerializer):
@@ -47,7 +79,15 @@ class LeadSerializer(serializers.ModelSerializer):
             'company_website', 'industry', 'employee_count', 'campany_linkedin_page', 'location', 'source',
             'lead_type', 'tags', 'lead_list', 'subscribed_company'
         ]
+        read_only_fields = ['subscribed_company']
         validators = []
+    
+    def validate_lead_list(self, value):
+        request = self.context.get("request")
+        if value and request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This lead list does not belong to your company.")
+        return value
 
 
 class ScheduleSerializer(serializers.ModelSerializer):
@@ -55,11 +95,25 @@ class ScheduleSerializer(serializers.ModelSerializer):
         model = Schedule
         fields = '__all__' 
 
+    def validate_campaign(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This campaign does not belong to your company.")
+        return value
+
 
 class CampaignOptionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CampaignOptions
         fields = '__all__'
+
+    def validate_campaign(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This campaign does not belong to your company.")
+        return value
 
 
 class CampaignStatsSerializer(serializers.ModelSerializer):
@@ -67,10 +121,24 @@ class CampaignStatsSerializer(serializers.ModelSerializer):
         model = CampaignStats
         fields = '__all__'
 
+    def validate_campaign(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This campaign does not belong to your company.")
+        return value
+
 class CampaignDailyStatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CampaignDailyStats
         fields = '__all__'
+
+    def validate_campaign(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            if value.subscribed_company != request.user.subscribed_company:
+                raise serializers.ValidationError("This campaign does not belong to your company.")
+        return value
 
 
 # Authentication Serializers

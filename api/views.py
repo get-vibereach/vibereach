@@ -28,6 +28,7 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator # for class based view: @method_decorator(cache_page(60*15), name='get')
 from django.views.decorators.cache import cache_page # for function based view: @cache_page(60*15) but it under the method example @api_view(['GET'])
 from django.core.cache import cache
+from api.core import SubscribedCompanyQuerysetMixin
 CACHE_TIMEOUT_SECONDS = 60 * 15
 
 # testing inggest
@@ -38,20 +39,20 @@ logger = logging.getLogger(__name__)
 
 
 
-class ProductListCreateView(generics.ListCreateAPIView):
+class ProductListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
-class ProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class ProductRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
 
-class EmailAccountListCreateView(generics.ListCreateAPIView):
+class EmailAccountListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = EmailAccount.objects.all()
     serializer_class = EmailAccountSerializer
 
-class EmailAccountRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class EmailAccountRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = EmailAccount.objects.all()
     serializer_class = EmailAccountSerializer
 
@@ -78,29 +79,29 @@ def test_email_account_connection(request, pk):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class CampaignListCreateView(generics.ListCreateAPIView):
+class CampaignListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = Campaign.objects.all()
     serializer_class = CampaignSerializer
 
-class CampaignRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class CampaignRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Campaign.objects.all()
     serializer_class = CampaignSerializer
 
 
-class MessageListCreateView(generics.ListCreateAPIView):
+class MessageListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
 
-class MessageRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class MessageRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
 
 
-class MessageAssignmentListCreateView(generics.ListCreateAPIView):
+class MessageAssignmentListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = MessageAssignment.objects.all()
     serializer_class = MessageAssignmentSerializer
 
-class MessageAssignmentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class MessageAssignmentRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = MessageAssignment.objects.all()
     serializer_class = MessageAssignmentSerializer
 
@@ -263,11 +264,11 @@ def mark_assignment_as_replied(request, assignment_id):
         }, status=400)
 
 
-class LeadListCreateView(generics.ListCreateAPIView):
+class LeadListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = LeadList.objects.all()
     serializer_class = LeadListSerializer
 
-class LeadListRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class LeadListRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = LeadList.objects.all()
     serializer_class = LeadListSerializer
 
@@ -330,7 +331,7 @@ class LeadFieldsView(APIView):
 
 
 
-class LeadCreateView(generics.ListCreateAPIView):
+class LeadCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = Lead.objects.all()
     serializer_class = LeadSerializer
 
@@ -368,7 +369,7 @@ class LeadCreateView(generics.ListCreateAPIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
-class LeadRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class LeadRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Lead.objects.all()
     serializer_class = LeadSerializer
 
@@ -519,7 +520,7 @@ class MoveLeadsToListView(APIView):
 
 
 
-class ScheduleListCreateView(generics.ListCreateAPIView):
+class ScheduleListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
 
@@ -543,13 +544,13 @@ class ScheduleListCreateView(generics.ListCreateAPIView):
         headers = self.get_success_headers(response_serializer.data) if created else {}
         return Response(response_serializer.data, status=status_code, headers=headers)
 
-class ScheduleRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class ScheduleRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
 
 
 
-class CampaignOptionsListCreateView(generics.ListCreateAPIView):
+class CampaignOptionsListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = CampaignOptions.objects.all()
     serializer_class = CampaignOptionsSerializer
 
@@ -574,7 +575,7 @@ class CampaignOptionsListCreateView(generics.ListCreateAPIView):
         return super().create(request, *args, **kwargs)
     
         
-class CampaignOptionsRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class CampaignOptionsRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = CampaignOptions.objects.all()
     serializer_class = CampaignOptionsSerializer
 
@@ -791,11 +792,11 @@ def campaign_launch_status(request, pk):
 
 
 
-class CampaignStatsListCreateView(generics.ListCreateAPIView):
+class CampaignStatsListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
     queryset = CampaignStats.objects.all()
     serializer_class = CampaignStatsSerializer
 
-class CampaignStatsRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class CampaignStatsRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = CampaignStats.objects.all()
     serializer_class = CampaignStatsSerializer
 

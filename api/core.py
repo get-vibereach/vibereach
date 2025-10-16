@@ -56,6 +56,14 @@ class SubscribedCompanyQuerysetMixin:
 				return self.queryset.filter(subscribed_company=user_company)
 			return self.queryset.none()
 
+	def perform_create(self, serializer):
+		if hasattr(self.queryset.model, 'subscribed_company'):
+			serializer.save(subscribed_company=self.request.user.subscribed_company)
+		else:
+			# For models with indirect relationships, the validation is now handled
+			# in the serializer itself. We can just save here.
+			serializer.save()
+
 # Product Views
 class ProductListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIView):
 	queryset = Product.objects.all()
