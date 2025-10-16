@@ -1,5 +1,6 @@
+
 from django.urls import path
-from . import views
+from . import views, core
 
 urlpatterns = [
     path('products/', views.ProductListCreateView.as_view(), name='product-list-create'),
@@ -57,4 +58,43 @@ urlpatterns = [
     path('.well-known/jwks.json', views.jwks_endpoint, name='jwks'),
     path('validate-token/', views.validate_token, name='validate-token'),
     path('mcp/jwt/', views.mcp_jwt_tokens, name='mcp-jwt-tokens'),
+
+
+
+    # Core API
+    path('core/leadlists/<int:leadlist_id>/leads/', core.LeadListLeadsView.as_view(), name='core-leadlist-leads'),
+    path('core/products/<int:product_id>/campaigns/', core.ProductCampaignsView.as_view(), name='core-product-campaigns'),
+    path('core/campaigns/<int:campaign_id>/leads/', core.CampaignLeadsView.as_view(), name='core-campaign-leads'),
+    path('core/campaigns/<int:campaign_id>/options/', core.CampaignOptionsByCampaignView.as_view(), name='core-campaign-options'),
+    path('core/campaigns/<int:campaign_id>/stats/', core.CampaignStatsByCampaignView.as_view(), name='core-campaign-stats'),
+    path('core/campaigns/<int:campaign_id>/schedule/', core.ScheduleByCampaignView.as_view(), name='core-campaign-schedule'),
+    path('core/campaigns/<int:campaign_id>/messages/', core.MessagesByCampaignView.as_view(), name='core-campaign-messages'),
+    path('core/campaigns/<int:campaign_id>/assignments/', core.MessageAssignmentsByCampaignView.as_view(), name='core-campaign-assignments'),
+    path('core/messages/<int:message_id>/assignments/', core.MessageAssignmentsByMessageView.as_view(), name='core-message-assignments'),
+
+    # Standard DRF endpoints for all core.py views
+    path('core/products/', core.ProductListCreateView.as_view(), name='core-product-list-create'),
+    path('core/products/<int:pk>/', core.ProductRetrieveUpdateDestroyView.as_view(), name='core-product-detail'),
+    path('core/email-accounts/', core.EmailAccountListCreateView.as_view(), name='core-email-account-list-create'),
+    path('core/email-accounts/<int:pk>/', core.EmailAccountRetrieveUpdateDestroyView.as_view(), name='core-email-account-detail'),
+    path('core/campaigns/', core.CampaignListCreateView.as_view(), name='core-campaign-list-create'),
+    path('core/campaigns/<int:pk>/', core.CampaignRetrieveUpdateDestroyView.as_view(), name='core-campaign-detail'),
+    path('core/leadlists/', core.LeadListListCreateView.as_view(), name='core-leadlist-list-create'),
+    path('core/leadlists/<int:pk>/', core.LeadListRetrieveUpdateDestroyView.as_view(), name='core-leadlist-detail'),
+    path('core/leads/', core.LeadListCreateView.as_view(), name='core-lead-list-create'),
+    path('core/leads/<int:pk>/', core.LeadRetrieveUpdateDestroyView.as_view(), name='core-lead-detail'),
+    path('core/schedule/', core.ScheduleListCreateView.as_view(), name='core-schedule-list-create'),
+    path('core/schedule/<int:pk>/', core.ScheduleRetrieveUpdateDestroyView.as_view(), name='core-schedule-detail'),
+    path('core/campaign-options/', core.CampaignOptionsListCreateView.as_view(), name='core-campaign-options-list-create'),
+    path('core/campaign-options/<int:pk>/', core.CampaignOptionsRetrieveUpdateDestroyView.as_view(), name='core-campaign-options-detail'),
+    path('core/campaign-stats/', core.CampaignStatsListCreateView.as_view(), name='core-campaign-stats-list-create'),
+    path('core/campaign-stats/<int:pk>/', core.CampaignStatsRetrieveUpdateDestroyView.as_view(), name='core-campaign-stats-detail'),
+    path('core/campaign-daily-stats/', core.CampaignDailyStatsListCreateView.as_view(), name='core-campaign-daily-stats-list-create'),
+    path('core/campaign-daily-stats/<int:pk>/', core.CampaignDailyStatsRetrieveUpdateDestroyView.as_view(), name='core-campaign-daily-stats-detail'),
+    path('core/messages/', core.MessageListCreateView.as_view(), name='core-message-list-create'),
+    path('core/messages/<int:pk>/', core.MessageRetrieveUpdateDestroyView.as_view(), name='core-message-detail'),
+    path('core/campaign-leads/', core.CampaignLeadListCreateView.as_view(), name='core-campaign-lead-list-create'),
+    path('core/campaign-leads/<int:pk>/', core.CampaignLeadRetrieveUpdateDestroyView.as_view(), name='core-campaign-lead-detail'),
+    path('core/message-assignments/', core.MessageAssignmentListCreateView.as_view(), name='core-message-assignment-list-create'),
+    path('core/message-assignments/<int:pk>/', core.MessageAssignmentRetrieveUpdateDestroyView.as_view(), name='core-message-assignment-detail'),
 ]

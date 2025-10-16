@@ -1,3 +1,91 @@
+# --- Child-by-parent views for core API ---
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+
+# Leads by LeadList
+class LeadListLeadsView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, leadlist_id):
+		leadlist = get_object_or_404(LeadList, id=leadlist_id, subscribed_company=request.user.subscribed_company)
+		leads = Lead.objects.filter(lead_list=leadlist)
+		serializer = LeadSerializer(leads, many=True)
+		return Response(serializer.data)
+
+# Campaigns by Product
+class ProductCampaignsView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, product_id):
+		product = get_object_or_404(Product, id=product_id, subscribed_company=request.user.subscribed_company)
+		campaigns = Campaign.objects.filter(product=product)
+		serializer = CampaignSerializer(campaigns, many=True)
+		return Response(serializer.data)
+
+# CampaignLeads by Campaign
+class CampaignLeadsView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, campaign_id):
+		campaign = get_object_or_404(Campaign, id=campaign_id, subscribed_company=request.user.subscribed_company)
+		campaign_leads = CampaignLead.objects.filter(campaign=campaign)
+		serializer = LeadSerializer([cl.lead for cl in campaign_leads], many=True)
+		return Response(serializer.data)
+
+# CampaignOptions by Campaign
+class CampaignOptionsByCampaignView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, campaign_id):
+		campaign = get_object_or_404(Campaign, id=campaign_id, subscribed_company=request.user.subscribed_company)
+		options = CampaignOptions.objects.filter(campaign=campaign)
+		serializer = CampaignOptionsSerializer(options, many=True)
+		return Response(serializer.data)
+
+# CampaignStats by Campaign
+class CampaignStatsByCampaignView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, campaign_id):
+		campaign = get_object_or_404(Campaign, id=campaign_id, subscribed_company=request.user.subscribed_company)
+		stats = CampaignStats.objects.filter(campaign=campaign)
+		serializer = CampaignStatsSerializer(stats, many=True)
+		return Response(serializer.data)
+
+# Schedule by Campaign
+class ScheduleByCampaignView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, campaign_id):
+		campaign = get_object_or_404(Campaign, id=campaign_id, subscribed_company=request.user.subscribed_company)
+		schedules = Schedule.objects.filter(campaign=campaign)
+		serializer = ScheduleSerializer(schedules, many=True)
+		return Response(serializer.data)
+
+# Messages by Campaign
+class MessagesByCampaignView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, campaign_id):
+		campaign = get_object_or_404(Campaign, id=campaign_id, subscribed_company=request.user.subscribed_company)
+		messages = Message.objects.filter(product=campaign.product)
+		serializer = MessageSerializer(messages, many=True)
+		return Response(serializer.data)
+
+# MessageAssignments by Campaign
+class MessageAssignmentsByCampaignView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, campaign_id):
+		campaign = get_object_or_404(Campaign, id=campaign_id, subscribed_company=request.user.subscribed_company)
+		assignments = MessageAssignment.objects.filter(campaign=campaign)
+		serializer = MessageAssignmentSerializer(assignments, many=True)
+		return Response(serializer.data)
+
+# MessageAssignments by Message
+class MessageAssignmentsByMessageView(APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, message_id):
+		message = get_object_or_404(Message, id=message_id)
+		# Only allow if message.product belongs to user's company
+		if message.product.subscribed_company != request.user.subscribed_company:
+			return Response({'detail': 'Not found.'}, status=404)
+		assignments = MessageAssignment.objects.filter(message=message)
+		serializer = MessageAssignmentSerializer(assignments, many=True)
+		return Response(serializer.data)
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from .serializers import (
