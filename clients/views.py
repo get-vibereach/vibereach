@@ -35,7 +35,7 @@ def reset_password_view(request):
             # Update the session hash to prevent the user from being logged out
             update_session_auth_hash(request, request.user)
             messages.success(request, 'Your password has been set successfully.')
-            return redirect('login')
+            return redirect('account_login')
         else:
             messages.error(request, 'Passwords do not match.')
             return redirect('reset_password')
@@ -161,7 +161,7 @@ def api_logout(request):
     return Response({
         'success': True,
         'message': 'Logout successful',
-        'redirect_url': reverse('login')
+        'redirect_url': reverse('account_login')
     }, status=status.HTTP_200_OK)
 
 
@@ -213,7 +213,7 @@ def api_user_registration(request):
             del request.session['company_data']
 
             # Log the user in
-            login(request, user)
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
 
             return Response({
                 'success': True,
@@ -353,7 +353,7 @@ def login_with_token_view(request, token):
 
         if request.method == 'POST':
             user = User.objects.get(email=login_token.email)
-            login(request, user)
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             login_token.is_used = True
             login_token.save()
             return redirect('reset_password')
