@@ -191,6 +191,12 @@ class MessageAssignmentRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin,
 
 
 
+
+
+
+
+
+
 # Leads by LeadList
 class LeadListLeadsView(APIView):
 	permission_classes = [IsAuthenticated]
