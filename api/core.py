@@ -1,4 +1,4 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from .serializers import (
 	ProductSerializer, EmailAccountSerializer, CampaignSerializer,
@@ -14,6 +14,7 @@ from campaign.models import Campaign, CampaignLead, CampaignOptions, CampaignSta
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+
 
 
 
@@ -105,6 +106,9 @@ class LeadListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreateAPIV
 	serializer_class = LeadSerializer
 	permission_classes = [IsAuthenticated]
 
+	def get(self, request, *args, **kwargs):
+		return Response({'detail': 'Method "GET" not allowed.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 class LeadRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
 	queryset = Lead.objects.all()
 	serializer_class = LeadSerializer
@@ -115,6 +119,9 @@ class ScheduleListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCreate
 	queryset = Schedule.objects.all()
 	serializer_class = ScheduleSerializer
 	permission_classes = [IsAuthenticated]
+	
+	def get(self, request, *args, **kwargs):
+		return Response({'detail': 'Method "GET" not allowed.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 class ScheduleRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
 	queryset = Schedule.objects.all()
@@ -127,6 +134,9 @@ class CampaignOptionsListCreateView(SubscribedCompanyQuerysetMixin, generics.Lis
 	serializer_class = CampaignOptionsSerializer
 	permission_classes = [IsAuthenticated]
 
+	def get(self, request, *args, **kwargs):
+		return Response({'detail': 'Method "GET" not allowed.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+	
 class CampaignOptionsRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
 	queryset = CampaignOptions.objects.all()
 	serializer_class = CampaignOptionsSerializer
@@ -138,6 +148,9 @@ class CampaignStatsListCreateView(SubscribedCompanyQuerysetMixin, generics.ListC
 	serializer_class = CampaignStatsSerializer
 	permission_classes = [IsAuthenticated]
 
+	def get(self, request, *args, **kwargs):
+		return Response({'detail': 'Method "GET" not allowed.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+	
 class CampaignStatsRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
 	queryset = CampaignStats.objects.all()
 	serializer_class = CampaignStatsSerializer
@@ -150,6 +163,9 @@ class CampaignDailyStatsListCreateView(SubscribedCompanyQuerysetMixin, generics.
 	serializer_class = CampaignDailyStatsSerializer
 	permission_classes = [IsAuthenticated]
 
+	def get(self, request, *args, **kwargs):
+		return Response({'detail': 'Method "GET" not allowed.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+	
 class CampaignDailyStatsRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
 	queryset = CampaignDailyStats.objects.all()
 	serializer_class = CampaignDailyStatsSerializer
@@ -173,6 +189,9 @@ class CampaignLeadListCreateView(SubscribedCompanyQuerysetMixin, generics.ListCr
 	serializer_class = LeadSerializer  # You may want a dedicated CampaignLeadSerializer
 	permission_classes = [IsAuthenticated]
 
+	def get(self, request, *args, **kwargs):
+		return Response({'detail': 'Method "GET" not allowed.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+	
 class CampaignLeadRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
 	queryset = CampaignLead.objects.all()
 	serializer_class = LeadSerializer  # You may want a dedicated CampaignLeadSerializer
@@ -183,6 +202,8 @@ class MessageAssignmentListCreateView(SubscribedCompanyQuerysetMixin, generics.L
 	queryset = MessageAssignment.objects.all()
 	serializer_class = MessageAssignmentSerializer
 	permission_classes = [IsAuthenticated]
+	def get(self, request, *args, **kwargs):
+		return Response({'detail': 'Method "GET" not allowed.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 class MessageAssignmentRetrieveUpdateDestroyView(SubscribedCompanyQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
 	queryset = MessageAssignment.objects.all()
