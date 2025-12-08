@@ -1,75 +1,31 @@
-services:
-  web_blue:
-    build: .
-    ports:
-      - "8010:8000"
-    restart: unless-stopped  
-    env_file:
-      - .env.blue
-    environment:
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONUNBUFFERED=1
-    command: >
-      sh -c "mkdir -p /app/logs &&
-             python manage.py collectstatic --noinput &&
-             python manage.py makemigrations &&
-             python manage.py makemigrations clients campaign api support feedback &&
-             python manage.py migrate clients &&
-             python manage.py migrate campaign &&
-             python manage.py migrate support &&
-             python manage.py migrate feedback &&
-             python manage.py migrate &&
-             gunicorn dcrm.wsgi:application --bind 0.0.0.0:8000 --access-logfile /app/logs/gunicorn_access.log --error-logfile /app/logs/gunicorn_error.log"
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
-      - ./logs_blue:/app/logs
-      - ./jwt_private_key.pem:/app/jwt_private_key.pem:ro
-      - ./jwt_public_key.pem:/app/jwt_public_key.pem:ro
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy  # Wait for Redis to be healthy
-    networks:
-      - app-network
-      - redis-network
+version: "3.8"
 
-  web_green:
+services:
+  vibereach_backend:
     build: .
     ports:
-      - "8011:8000"
-    restart: unless-stopped  
+      - "8001:8000" # Use standard port, or let Dokploy manage it
+    restart: unless-stopped
     env_file:
-      - .env.green
+      - .env # Single environment file
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
     command: >
-      sh -c "mkdir -p /app/logs &&
-             python manage.py collectstatic --noinput &&
-             python manage.py makemigrations &&
-             python manage.py makemigrations clients campaign api support feedback &&
-             python manage.py migrate clients &&
-             python manage.py migrate campaign &&
-             python manage.py migrate support &&
-             python manage.py migrate feedback &&
+      sh -c "python manage.py collectstatic --noinput &&
              python manage.py migrate &&
-             gunicorn dcrm.wsgi:application --bind 0.0.0.0:8000 --access-logfile /app/logs/gunicorn_access.log --error-logfile /app/logs/gunicorn_error.log"
+             gunicorn dcrm.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
-      - .:/app
       - static_volume:/app/staticfiles
-      - ./logs_green:/app/logs
-      - ./jwt_private_key.pem:/app/jwt_private_key.pem:ro
-      - ./jwt_public_key.pem:/app/jwt_public_key.pem:ro
+      # Add media volume if needed
+      # - media_volume:/app/media
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy  # Wait for Redis to be healthy
+        condition: service_healthy
     networks:
       - app-network
-      - redis-network
 
   db:
     image: postgres:15
@@ -79,7 +35,7 @@ services:
       POSTGRES_USER: omar
       POSTGRES_PASSWORD: uW9_qX9_pT8-yG4_zU1_
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U omar -d vibereach-db-1"]
       interval: 5s
@@ -91,23 +47,23 @@ services:
   redis:
     image: redis:alpine
     restart: always
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    networks:
-      - redis-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 3
+    networks:
+      - app-network
 
 volumes:
   static_volume:
-  pgdata:
+  postgres_data:
   redis_data:
+  # media_volume:  # Uncomment if needed
 
 networks:
   app-network:
-    driver: bridge
-  redis-network:
     driver: bridge
