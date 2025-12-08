@@ -20,27 +20,8 @@ services:
       # Add media volume if needed
       # - media_volume:/app/media
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - app-network
-
-  db:
-    image: postgres:15
-    restart: always
-    environment:
-      POSTGRES_DB: vibereach-db-1
-      POSTGRES_USER: omar
-      POSTGRES_PASSWORD: uW9_qX9_pT8-yG4_zU1_
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U omar -d vibereach-db-1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
     networks:
       - app-network
 
@@ -60,7 +41,6 @@ services:
 
 volumes:
   static_volume:
-  postgres_data:
   redis_data:
   # media_volume:  # Uncomment if needed
 
