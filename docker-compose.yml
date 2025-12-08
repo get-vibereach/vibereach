@@ -22,7 +22,7 @@ services:
             python manage.py migrate support &&
             python manage.py migrate feedback &&
             python manage.py migrate &&
-            gunicorn dcrm.wsgi:application --bind 0.0.0.0:8000 --access-logfile /app/logs/gunicorn_access.log --error-logfile /app/logs/gunicorn_error.log"]
+            gunicorn dcrm.wsgi:application --bind 0.0.0.0:8000 --access-logfile /app/logs/gunicorn_access.log --error-logfile /app/logs/gunicorn_error.log"
     volumes:
       - static_volume:/app/staticfiles
       # Add media volume if needed
