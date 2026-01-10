@@ -343,9 +343,13 @@ class MessageAdmin(admin.ModelAdmin):
     list_filter = ('product__subscribed_company', 'product') # Added subscribed_company to filter
     
     def message_preview(self, obj):
-        if len(obj.content) > 50:
-            return obj.content[:50] + "..."
-        return obj.content
+        from django.utils.html import strip_tags
+        content_to_preview = obj.content if obj.content and obj.content != "admin" else strip_tags(obj.full_content)
+        if not content_to_preview:
+            return "-"
+        if len(content_to_preview) > 50:
+            return content_to_preview[:50] + "..."
+        return content_to_preview
     message_preview.short_description = 'Content Preview'
 
 
